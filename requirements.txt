@@ -1,0 +1,8 @@
+pandas
+nltk
+playwright
+requests
+pymorphy2
+scikit-learn
+rake_nltk
+selenium
