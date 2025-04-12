@@ -1,5 +1,4 @@
 # requirements.txt
-python>=3.8,<3.12  # Указание совместимых версий Python
 pandas
 nltk
 playwright
@@ -10,3 +9,4 @@ rake_nltk
 selenium
 matplotlib>=3.5.0
 openai>=1.0.0
+fpdf>=1.7.2

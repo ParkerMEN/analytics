@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from openai import OpenAI
+import subprocess
 
 
 def load_message_from_file(filename):
@@ -47,6 +48,7 @@ def chat_with_gpt(messages_files):
     
     client = OpenAI(api_key=api_key)
     conversation_history = []
+    response_step3_file = None
 
     # Последовательно отправляем сообщения
     for i, message_file in enumerate(messages_files, 1):
@@ -70,6 +72,10 @@ def chat_with_gpt(messages_files):
             # Получаем текст ответа из новой структуры ответа
             response_text = response.choices[0].message.content
             response_file = save_response_text(response_text, i)
+            
+            # Запоминаем файл с ответом для шага 3
+            if i == 3:
+                response_step3_file = response_file
 
             # Добавляем ответ ассистента в историю
             conversation_history.append({"role": "assistant", "content": response_text})
@@ -77,9 +83,44 @@ def chat_with_gpt(messages_files):
 
         except Exception as e:
             print(f"Ошибка при отправке запроса: {e}")
-            return False
+            return False, None
 
-    return True
+    return True, response_step3_file
+
+def generate_pdf_from_response(response_file):
+    """
+    Запускает pdf_generator.py для создания PDF из файла ответа.
+    """
+    try:
+        # Проверка существования файла pdf_generator.py
+        if not os.path.exists('pdf_generator.py'):
+            print("ОШИБКА: Файл pdf_generator.py не найден.")
+            return False
+            
+        # Импортируем функцию из pdf_generator.py
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("pdf_generator", "pdf_generator.py")
+        pdf_generator = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pdf_generator)
+        
+        # Определяем имя выходного PDF-файла
+        output_dir = "pdf_reports"
+        os.makedirs(output_dir, exist_ok=True)
+        output_pdf = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(response_file))[0]}.pdf")
+        
+        # Вызываем функцию для создания PDF
+        result = pdf_generator.generate_pdf_with_plot(response_file, output_pdf)
+        
+        if result:
+            print(f"PDF-отчет создан: {output_pdf}")
+            return True
+        else:
+            print(f"Не удалось создать PDF-отчет для файла {response_file}")
+            return False
+            
+    except Exception as e:
+        print(f"Ошибка при создании PDF: {e}")
+        return False
 
 if __name__ == "__main__":
     # Последовательность файлов сообщений
@@ -95,8 +136,16 @@ if __name__ == "__main__":
         print(f"Отсутствуют следующие файлы с сообщениями: {', '.join(missing_files)}")
     else:
         # Запускаем чат с GPT
-        success = chat_with_gpt(messages_files)
+        success, response_step3_file = chat_with_gpt(messages_files)
         if success:
             print("Диалог успешно завершен. Ответы сохранены в директории 'responses'.")
+            
+            # Создаем PDF из файла с ответом от шага 3
+            if response_step3_file and response_step3_file.endswith(".txt"):
+                pdf_success = generate_pdf_from_response(response_step3_file)
+                if pdf_success:
+                    print("PDF-отчет успешно создан.")
+                else:
+                    print("Произошла ошибка при создании PDF-отчета.")
         else:
             print("Произошла ошибка при выполнении диалога.")
