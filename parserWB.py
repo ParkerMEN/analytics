@@ -131,6 +131,19 @@ def main():
             # Сохраняем отзывы в файл
             save_reviews_to_file(reviews, filename)
             print(f"Отзывы для артикула {article} сохранены в файл {filename}")
+            
+            # Запускаем анализатор для обработки полученных отзывов
+            try:
+                print("Запуск анализа отзывов...")
+                import subprocess
+                result = subprocess.run(["python", "analyzer.py", filename], 
+                                        capture_output=True, text=True, encoding='utf-8')
+                if result.returncode == 0:
+                    print("Анализ отзывов успешно завершен")
+                else:
+                    print(f"Ошибка при анализе отзывов: {result.stderr}")
+            except Exception as e:
+                print(f"Не удалось запустить анализатор: {e}")
 
 # Запускаем основную функцию
 if __name__ == "__main__":
