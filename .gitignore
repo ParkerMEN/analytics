@@ -1,13 +1,20 @@
-# Временные файлы Python
+# Python-файлы и кэш
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Журналы и временные файлы
-*.log
+# Файлы с API ключами
+api_key.txt
+gpt_config.py
+
+# Временные файлы и папки
+analysis_*/
+responses/
+chart_section_*.png
+diagram_script_*.py
 *.tmp
 
-# Директории с данными, которые не нужно отслеживать
-/responses/
-/chart_section_*.png
-/diagram_script_*.py
+# Шрифты (можно хранить в другом месте)
+*.ttf
+*.pkl
+*.cw127.pkl
