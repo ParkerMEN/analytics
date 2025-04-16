@@ -55,8 +55,15 @@ import matplotlib.colors as mcolors
 # Настройки для улучшения читаемости и предотвращения наложения
 plt.rcParams['figure.figsize'] = (12, 8)  # Увеличиваем размер фигуры по умолчанию
 plt.rcParams['figure.autolayout'] = True  # Автоматический макет
-plt.rcParams['lines.linewidth'] = 1.2  # Нормальная толщина линий (не жирные)
-plt.rcParams['font.size'] = 12  # Сохраняем хороший размер шрифта для читаемости
+plt.rcParams['font.size'] = 12  # Размер шрифта для общего текста
+plt.rcParams['axes.titlesize'] = 18  # Увеличиваем размер названия диаграммы
+plt.rcParams['lines.linewidth'] = 0.8  # Делаем линии тоньше
+plt.rcParams['axes.linewidth'] = 0.5  # Тонкие границы осей
+plt.rcParams['axes.edgecolor'] = '#888888'  # Менее контрастные оси
+plt.rcParams['grid.linewidth'] = 0.3  # Тонкие линии сетки
+plt.rcParams['patch.linewidth'] = 0.5  # Тонкие линии для патчей (например, в круговых диаграммах)
+plt.rcParams['xtick.major.width'] = 0.5  # Тонкие отметки на осях
+plt.rcParams['ytick.major.width'] = 0.5  # Тонкие отметки на осях
 
 # Функция для улучшения разметки графика
 def improve_layout():
@@ -66,7 +73,7 @@ def improve_layout():
         if hasattr(ax, 'get_xticklabels'):
             labels = ax.get_xticklabels()
             # Поворачиваем подписи только если они накладываются
-            if len(labels) > 6:
+            if len(labels) > 4:
                 # Получаем границы оси X
                 x_min, x_max = ax.get_xlim()
                 label_width = (x_max - x_min) / len(labels)
@@ -76,28 +83,44 @@ def improve_layout():
                 avg_char_width = total_text_width / len(labels) if labels else 0
                 
                 # Если подписи могут накладываться, поворачиваем их
-                if avg_char_width > 6 and label_width < avg_char_width * 0.7:
-                    plt.setp(labels, rotation=30, ha='right')
+                if avg_char_width > 4 and label_width < avg_char_width * 0.8:
+                    plt.setp(labels, rotation=30, ha='right', fontsize=12)
+            else:
+                plt.setp(labels, fontsize=12)  # Увеличиваем размер шрифта для меньшего количества подписей
                 
         # Регулируем расстояние между подписями на оси Y без удаления
-        if hasattr(ax, 'get_yticklabels') and len(ax.get_yticklabels()) > 10:
-            ax.tick_params(axis='y', labelsize=11)  # Уменьшаем немного при большом количестве
+        if hasattr(ax, 'get_yticklabels'):
+            y_labels = ax.get_yticklabels()
+            if len(y_labels) > 8:
+                plt.setp(y_labels, fontsize=11)  # Уменьшаем размер при большом количестве
+            else:
+                plt.setp(y_labels, fontsize=12)  # Увеличиваем для меньшего количества
+                
+        # Увеличиваем отступ названия графика
+        if ax.get_title():
+            ax.set_title(ax.get_title(), pad=15, fontsize=18, fontweight='bold')
+            
+        # Настраиваем сетку, если она есть
+        if ax.get_xgridlines() or ax.get_ygridlines():
+            ax.grid(True, linestyle='--', alpha=0.5, linewidth=0.3)
 
 # Проверка наличия seaborn
 try:
     import seaborn as sns
+    # Настраиваем стиль seaborn
+    sns.set_style("whitegrid", {'grid.linestyle': '--', 'grid.alpha': 0.3, 'grid.linewidth': 0.3})
 except ImportError:
     # Если seaborn не установлен, создаем улучшенную "заглушку" для heatmap
     class MockSeaborn:
         def heatmap(self, data, **kwargs):
-            fig = plt.figure(figsize=(10, max(3, data.shape[0] * 0.4)))  # Динамический размер для heatmap
-            plt.imshow(data, aspect='auto')
+            fig = plt.figure(figsize=(10, max(4, data.shape[0] * 0.5)))  # Динамический размер для heatmap
+            plt.imshow(data, aspect='auto', cmap='YlGnBu')
             if 'annot' in kwargs and kwargs['annot']:
                 height, width = data.shape
                 for i in range(height):
                     for j in range(width):
                         # Устанавливаем минимальный размер шрифта 10
-                        fontsize = 10 if height * width < 100 else 9
+                        fontsize = 11 if height * width < 100 else 10
                         plt.text(j, i, str(data[i, j]), 
                                  ha="center", va="center", 
                                  fontsize=fontsize)
@@ -105,28 +128,70 @@ except ImportError:
                 # Адаптивное вращение подписей в зависимости от их количества
                 x_labels = kwargs['xticklabels']
                 plt.xticks(range(len(x_labels)), x_labels)
-                if len(x_labels) > 6:
-                    plt.xticks(rotation=30, ha='right')
+                if len(x_labels) > 4:
+                    plt.xticks(rotation=30, ha='right', fontsize=12)
+                else:
+                    plt.xticks(fontsize=12)
             if 'yticklabels' in kwargs:
-                plt.yticks(range(len(kwargs['yticklabels'])), kwargs['yticklabels'])
-            plt.colorbar(label='Значения')
-            plt.tight_layout(pad=1.2)  # Достаточный отступ
+                y_labels = kwargs['yticklabels']
+                plt.yticks(range(len(y_labels)), y_labels, fontsize=12)
+            plt.colorbar(label='Значения', fraction=0.046, pad=0.04)
+            plt.tight_layout(pad=1.5)  # Больший отступ
             return plt.gca()
     sns = MockSeaborn()
+
+# Функция для настройки круговых диаграмм
+def improve_pie_chart():
+    fig = plt.gcf()
+    for ax in fig.axes:
+        # Проверяем, является ли текущая ось круговой диаграммой
+        if hasattr(ax, 'patches') and ax.patches:
+            # Устанавливаем меньшую толщину линий для всех сегментов
+            for patch in ax.patches:
+                patch.set_linewidth(0.3)
+                patch.set_edgecolor('#888888')  # Светло-серый цвет границ
+            
+            # Проверяем существование текста для легенды
+            if hasattr(ax, 'texts') and ax.texts:
+                # Делаем текст процентов более читаемым
+                for text in ax.texts:
+                    if '%' in text.get_text():  # Это текст с процентами
+                        text.set_fontsize(11)
+            
+            # Если есть легенда, настраиваем её
+            if ax.get_legend():
+                legend = ax.get_legend()
+                legend.set_frame_on(False)  # Убираем рамку
+                # Увеличиваем размер текста в легенде
+                for text in legend.get_texts():
+                    text.set_fontsize(12)
 """
         
         # Модифицируем код: убираем plt.show() и добавляем сохранение
         modified_code += code.replace("plt.show()", "")
+        
+        # Добавляем улучшения для круговой диаграммы
+        if "plt.pie" in modified_code:
+            improved_save = """
+# Применяем улучшения для круговой диаграммы
+improve_pie_chart()
+"""
+        else:
+            improved_save = ""
+            
         if "plt.savefig" not in modified_code:
+            modified_code += improved_save
             modified_code += "\n# Улучшаем компоновку перед сохранением"
             modified_code += "\nimprove_layout()"
-            modified_code += "\nplt.tight_layout(pad=1.2)"
-            modified_code += f"\nplt.savefig('{output_path}', bbox_inches='tight', dpi=120)"
+            modified_code += "\nplt.tight_layout(pad=1.5)"  # Увеличиваем отступ
+            modified_code += f"\nplt.savefig('{output_path}', bbox_inches='tight', dpi=150)"  # Увеличиваем DPI
         else:
             # Если в коде уже есть сохранение, добавляем улучшение компоновки перед ним
             save_index = modified_code.find("plt.savefig")
             if save_index > 0:
-                modified_code = modified_code[:save_index] + "\n# Улучшаем компоновку перед сохранением\nimprove_layout()\nplt.tight_layout(pad=1.2)\n" + modified_code[save_index:]
+                modified_code = modified_code[:save_index] + improved_save + "\n# Улучшаем компоновку перед сохранением\nimprove_layout()\nplt.tight_layout(pad=1.5)\n" + modified_code[save_index:]
+                # Заменяем параметры в существующем plt.savefig
+                modified_code = modified_code.replace("plt.savefig(", "plt.savefig(bbox_inches='tight', dpi=150, ")
                 
         modified_code += "\nplt.close('all')"
         
