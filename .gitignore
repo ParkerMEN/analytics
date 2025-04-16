@@ -1,0 +1,13 @@
+# Временные файлы Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Журналы и временные файлы
+*.log
+*.tmp
+
+# Директории с данными, которые не нужно отслеживать
+/responses/
+/chart_section_*.png
+/diagram_script_*.py
