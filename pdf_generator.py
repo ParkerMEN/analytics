@@ -11,21 +11,16 @@ class PDF(FPDF):
         super().__init__(orientation, unit, format)
         # Добавляем шрифт с поддержкой кириллицы
         self.add_font('DejaVu', '', 'DejaVuSansCondensed.ttf', uni=True)
-        self.add_font('DejaVu', 'B', 'DejaVuSansCondensed.ttf', uni=True)
-        # Устанавливаем отступы
-        self.set_margins(15, 15, 15)
         
     def chapter_title(self, title):
-        self.set_font('DejaVu', 'B', 16)
-        self.set_text_color(44, 44, 44)  # Тёмно-серый цвет для заголовков
+        self.set_font('DejaVu', '', 16)
         self.cell(0, 10, title, 0, 1, 'C')
-        self.ln(5)  # Уменьшенный отступ после заголовка
+        self.ln(10)
         
     def chapter_body(self, text):
         self.set_font('DejaVu', '', 12)
-        self.set_text_color(0, 0, 0)  # Черный текст для основного содержания
-        self.multi_cell(0, 7, text)  # Немного уменьшенный межстрочный интервал
-        self.ln(5)  # Отступ после текста
+        self.multi_cell(0, 8, text)
+        self.ln()
 
 def extract_python_code(response_file):
     """Извлекает Python-код для построения диаграммы из файла ответа"""
@@ -49,7 +44,7 @@ def generate_plot(code, output_path):
         # Закрываем все предыдущие фигуры
         plt.close('all')
         
-        # Подготавливаем код с необходимыми импортами и улучшениями
+        # Подготавливаем код с необходимыми импортами и улучшенными настройками
         modified_code = """
 import matplotlib
 matplotlib.use('Agg')  # Не-интерактивный режим
@@ -57,82 +52,82 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as mcolors
 
-# Улучшения для диаграмм
-plt.rcParams['font.family'] = 'DejaVu Sans'
-plt.rcParams['font.size'] = 12
-plt.rcParams['axes.titlesize'] = 16
-plt.rcParams['axes.labelsize'] = 14
-plt.rcParams['xtick.labelsize'] = 12
-plt.rcParams['ytick.labelsize'] = 12
-plt.rcParams['legend.fontsize'] = 12
+# Настройки для улучшения читаемости и предотвращения наложения
+plt.rcParams['figure.figsize'] = (12, 8)  # Увеличиваем размер фигуры по умолчанию
+plt.rcParams['figure.autolayout'] = True  # Автоматический макет
+plt.rcParams['lines.linewidth'] = 1.2  # Нормальная толщина линий (не жирные)
+plt.rcParams['font.size'] = 12  # Сохраняем хороший размер шрифта для читаемости
 
-# Профессиональная цветовая палитра
-colors = ['#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47']
+# Функция для улучшения разметки графика
+def improve_layout():
+    fig = plt.gcf()
+    for ax in fig.axes:
+        # Обрабатываем подписи осей X
+        if hasattr(ax, 'get_xticklabels'):
+            labels = ax.get_xticklabels()
+            # Поворачиваем подписи только если они накладываются
+            if len(labels) > 6:
+                # Получаем границы оси X
+                x_min, x_max = ax.get_xlim()
+                label_width = (x_max - x_min) / len(labels)
+                
+                # Проверяем средний размер текста подписей
+                total_text_width = sum(len(l.get_text()) for l in labels)
+                avg_char_width = total_text_width / len(labels) if labels else 0
+                
+                # Если подписи могут накладываться, поворачиваем их
+                if avg_char_width > 6 and label_width < avg_char_width * 0.7:
+                    plt.setp(labels, rotation=30, ha='right')
+                
+        # Регулируем расстояние между подписями на оси Y без удаления
+        if hasattr(ax, 'get_yticklabels') and len(ax.get_yticklabels()) > 10:
+            ax.tick_params(axis='y', labelsize=11)  # Уменьшаем немного при большом количестве
 
 # Проверка наличия seaborn
 try:
     import seaborn as sns
 except ImportError:
-    # Если seaborn не установлен, создаем "заглушку" для heatmap
+    # Если seaborn не установлен, создаем улучшенную "заглушку" для heatmap
     class MockSeaborn:
         def heatmap(self, data, **kwargs):
-            plt.figure(figsize=(8, 4))
-            plt.imshow(data, aspect='auto', cmap='coolwarm')
-            # Добавляем сетку для тепловой карты
-            for i in range(data.shape[0]+1):
-                plt.axhline(i-0.5, color='white', lw=1)
-            for i in range(data.shape[1]+1):
-                plt.axvline(i-0.5, color='white', lw=1)
+            fig = plt.figure(figsize=(10, max(3, data.shape[0] * 0.4)))  # Динамический размер для heatmap
+            plt.imshow(data, aspect='auto')
             if 'annot' in kwargs and kwargs['annot']:
                 height, width = data.shape
                 for i in range(height):
                     for j in range(width):
+                        # Устанавливаем минимальный размер шрифта 10
+                        fontsize = 10 if height * width < 100 else 9
                         plt.text(j, i, str(data[i, j]), 
-                                ha="center", va="center")
+                                 ha="center", va="center", 
+                                 fontsize=fontsize)
             if 'xticklabels' in kwargs:
-                plt.xticks(range(len(kwargs['xticklabels'])), kwargs['xticklabels'])
+                # Адаптивное вращение подписей в зависимости от их количества
+                x_labels = kwargs['xticklabels']
+                plt.xticks(range(len(x_labels)), x_labels)
+                if len(x_labels) > 6:
+                    plt.xticks(rotation=30, ha='right')
             if 'yticklabels' in kwargs:
                 plt.yticks(range(len(kwargs['yticklabels'])), kwargs['yticklabels'])
             plt.colorbar(label='Значения')
+            plt.tight_layout(pad=1.2)  # Достаточный отступ
             return plt.gca()
-        
-        def boxplot(self, data=None, **kwargs):
-            # Убедимся, что данные правильного формата
-            if isinstance(data, list) and not isinstance(data[0], list):
-                data = [[x] for x in data]
-            fig = plt.figure(figsize=(8, 6))
-            ax = plt.boxplot(data, **kwargs)
-            # Добавляем сетку для box plot
-            plt.grid(True, linestyle='--', alpha=0.7, axis='y')
-            return ax
-            
     sns = MockSeaborn()
-
-# Функция для автоматического добавления сетки к диаграммам
-def enhance_chart(ax=None):
-    if ax is None:
-        ax = plt.gca()
-    # Добавляем сетку
-    ax.grid(True, linestyle='--', alpha=0.7, color='gray', zorder=0)
-    # Улучшаем оси
-    ax.spines['bottom'].set_linewidth(1.5)
-    ax.spines['left'].set_linewidth(1.5)
-    return ax
-
-# Установка стиля по умолчанию
-plt.style.use('seaborn-v0_8-whitegrid')
 """
         
-        # Вставляем оригинальный код
+        # Модифицируем код: убираем plt.show() и добавляем сохранение
         modified_code += code.replace("plt.show()", "")
-        
-        # Добавляем автоматическое добавление сетки, если её нет в коде
-        if "plt.grid" not in modified_code and "ax.grid" not in modified_code:
-            modified_code += "\n# Автоматически добавляем сетку\nenhance_chart()"
-        
-        # Добавляем сохранение, если оно отсутствует
         if "plt.savefig" not in modified_code:
-            modified_code += f"\nplt.savefig('{output_path}', bbox_inches='tight', dpi=300)"
+            modified_code += "\n# Улучшаем компоновку перед сохранением"
+            modified_code += "\nimprove_layout()"
+            modified_code += "\nplt.tight_layout(pad=1.2)"
+            modified_code += f"\nplt.savefig('{output_path}', bbox_inches='tight', dpi=120)"
+        else:
+            # Если в коде уже есть сохранение, добавляем улучшение компоновки перед ним
+            save_index = modified_code.find("plt.savefig")
+            if save_index > 0:
+                modified_code = modified_code[:save_index] + "\n# Улучшаем компоновку перед сохранением\nimprove_layout()\nplt.tight_layout(pad=1.2)\n" + modified_code[save_index:]
+                
         modified_code += "\nplt.close('all')"
         
         # Выполняем код
@@ -203,9 +198,7 @@ def generate_pdf_from_response(response_file, chart_file=None, output_pdf=None):
         # Добавляем изображение, если оно есть
         if chart_file and os.path.exists(chart_file) and os.path.getsize(chart_file) > 0:
             try:
-                # Улучшенное отображение изображения - центрирование и оптимальный размер
-                img_width = 180  # 180мм - почти вся ширина A4
-                pdf.image(chart_file, x=(210-img_width)/2, w=img_width)  # Центрирование
+                pdf.image(chart_file, x=10, w=180)
                 print(f"Изображение добавлено в PDF: {chart_file}")
             except Exception as e:
                 print(f"Ошибка при добавлении изображения в PDF: {e}")
