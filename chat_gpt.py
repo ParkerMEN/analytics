@@ -417,6 +417,24 @@ plt.close('all')
             continue
     
     print(f"Обработка всех секций аналитики завершена. Результаты сохранены в директории {session_dir}")
+    
+    # Объединяем все PDF-отчеты в один файл после обработки всех секций
+    try:
+        # Получаем артикул из имени файла аналитики
+        article = None
+        if analytics_file.startswith("reviews_") and "_prepared_for_ai_analytics" in analytics_file:
+            article = analytics_file.split("reviews_")[1].split("_prepared_for_ai_analytics")[0]
+        
+        if article:
+            # Импортируем функцию из pdf_generator.py
+            from pdf_generator import merge_pdf_reports
+            
+            # Создаем объединенный PDF с именем, соответствующим артикулу
+            merge_result = merge_pdf_reports(f"report_{article}.pdf", source_dir=pdf_dir)
+            if merge_result:
+                print(f"Создан объединенный PDF-отчет: report_{article}.pdf")
+    except Exception as e:
+        print(f"Ошибка при создании объединенного PDF-отчета: {e}")
 
 if __name__ == "__main__":
     import argparse

@@ -276,6 +276,66 @@ def generate_pdf_from_response(response_file, chart_file=None, output_pdf=None):
         print(f"Ошибка при создании PDF: {e}")
         return False
 
+def merge_pdf_reports(output_filename=None, source_dir='pdf_reports'):
+    """
+    Объединяет все PDF-файлы из указанной директории в один файл
+    
+    Args:
+        output_filename (str): Имя результирующего файла (без расширения)
+        source_dir (str): Директория с PDF-файлами для объединения
+    
+    Returns:
+        bool: Успешность операции
+    """
+    try:
+        from PyPDF2 import PdfMerger
+        import glob
+        
+        # Проверяем наличие директории с отчетами
+        if not os.path.exists(source_dir):
+            print(f"Директория {source_dir} не найдена")
+            return False
+        
+        # Получаем список PDF-файлов в директории
+        pdf_files = sorted(glob.glob(os.path.join(source_dir, "*.pdf")))
+        
+        if not pdf_files:
+            print(f"В директории {source_dir} не найдено PDF-файлов для объединения")
+            return False
+        
+        # Если имя выходного файла не указано, используем 'merged_report'
+        if not output_filename:
+            output_filename = 'merged_report'
+        
+        # Добавляем расширение .pdf, если его нет
+        if not output_filename.lower().endswith('.pdf'):
+            output_filename += '.pdf'
+        
+        # Создаем объект для объединения PDF
+        merger = PdfMerger()
+        
+        # Добавляем все PDF-файлы
+        for pdf in pdf_files:
+            try:
+                merger.append(pdf)
+                print(f"Добавлен файл: {pdf}")
+            except Exception as e:
+                print(f"Ошибка при добавлении файла {pdf}: {e}")
+        
+        # Сохраняем объединенный файл
+        merger.write(output_filename)
+        merger.close()
+        
+        print(f"Объединенный PDF-отчет сохранен: {output_filename}")
+        return True
+        
+    except ImportError:
+        print("Для объединения PDF требуется установить PyPDF2: pip install PyPDF2")
+        return False
+    except Exception as e:
+        print(f"Ошибка при объединении PDF-файлов: {e}")
+        return False
+
 if __name__ == "__main__":
     # Для тестирования
     import sys

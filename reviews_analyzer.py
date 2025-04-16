@@ -318,6 +318,24 @@ def process_reviews(reviews_file, prompt_file="my_prompt.txt", task_file="task_f
         with open(output_file, "w", encoding="utf-8") as file:
             file.write(improved_analysis)
         print(f"Аналитика успешно сохранена в файл: {output_file}")
+        
+        # Объединяем все PDF-отчеты в один файл после генерации аналитики
+        # Получаем артикул из имени файла отзывов
+        article = None
+        if reviews_file.startswith("reviews_") and reviews_file.endswith(".txt"):
+            article = reviews_file[8:-4]  # Обрезаем "reviews_" и ".txt"
+        elif reviews_file.startswith("reviews_") and reviews_file.endswith("_prepared_for_ai.txt"):
+            article = reviews_file[8:].split("_prepared_for_ai.txt")[0]
+        
+        if article:
+            # Импортируем функцию из pdf_generator.py
+            from pdf_generator import merge_pdf_reports
+            
+            # Создаем объединенный PDF с именем, соответствующим артикулу
+            merge_result = merge_pdf_reports(f"report_{article}.pdf")
+            if merge_result:
+                print(f"Создан объединенный PDF-отчет: report_{article}.pdf")
+        
         return output_file
     except Exception as e:
         print(f"Ошибка при сохранении результатов анализа: {e}")
