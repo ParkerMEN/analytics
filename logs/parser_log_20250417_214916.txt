@@ -1,0 +1,25 @@
+2025-04-17 21:49:16,886 - INFO - Логирование настроено. Лог-файл: logs\parser_log_20250417_214916.txt
+2025-04-17 21:49:16,887 - INFO - Запуск программы парсинга отзывов Wildberries
+2025-04-17 21:49:17,525 - INFO - Введен артикул: 259159563
+2025-04-17 21:49:17,525 - INFO - Переходим на страницу товара: https://www.wildberries.ru/catalog/259159563/detail.aspx
+2025-04-17 21:49:17,526 - INFO - Открываем страницу товара: https://www.wildberries.ru/catalog/259159563/detail.aspx
+2025-04-17 21:49:21,520 - INFO - Ожидаем загрузки страницы товара (максимум 5 минут)...
+2025-04-17 21:49:51,020 - INFO - Страница товара загружена. Название товара: Аккумуляторная мойка высокого давления
+2025-04-17 21:49:51,020 - INFO - Ищем imtId различными методами...
+2025-04-17 21:49:51,052 - INFO - imtId найден в URL кнопки отзывов: 201586764
+2025-04-17 21:49:52,883 - INFO - Получен imt_id: 201586764
+2025-04-17 21:49:52,883 - INFO - Попытка получить отзывы для imt_id: 201586764
+2025-04-17 21:49:52,884 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v1/201586764
+2025-04-17 21:49:56,550 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v1/201586764: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v1/201586764 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-17 21:49:56,550 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v2/201586764
+2025-04-17 21:50:00,468 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v2/201586764: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v2/201586764 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-17 21:50:00,469 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v3/201586764
+2025-04-17 21:50:10,493 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v3/201586764: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Read timed out. (read timeout=10)
+2025-04-17 21:50:10,494 - INFO - Пробуем URL: https://feedbacks1.wb.ru/feedbacks/v1/201586764
+2025-04-17 21:50:13,052 - INFO - Ответ от https://feedbacks1.wb.ru/feedbacks/v1/201586764 - статус код: 200
+2025-04-17 21:50:13,072 - INFO - Найдены отзывы! URL: https://feedbacks1.wb.ru/feedbacks/v1/201586764
+2025-04-17 21:50:13,073 - INFO - Количество отзывов: 1000
+2025-04-17 21:50:13,199 - INFO - Отзывы сохранены в файл reviews_259159563.json
+2025-04-17 21:50:13,200 - INFO - Форматирование отзывов для анализа AI
+2025-04-17 21:50:13,208 - INFO - Отзывы отформатированы и сохранены в файл reviews_259159563_prepared_for_ai.txt
+2025-04-17 21:50:13,208 - INFO - Работа программы завершена. Лог сохранен в файл logs\parser_log_20250417_214916.txt
