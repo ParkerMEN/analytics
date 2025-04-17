@@ -3,6 +3,7 @@ import time
 import json
 from pathlib import Path
 from openai import OpenAI
+from datetime import datetime
 
 def load_api_key():
     """Загружает API ключ из файла."""
@@ -331,10 +332,16 @@ def process_reviews(reviews_file, prompt_file="my_prompt.txt", task_file="task_f
             # Импортируем функцию из pdf_generator.py
             from pdf_generator import merge_pdf_reports
             
-            # Создаем объединенный PDF с именем, соответствующим артикулу
-            merge_result = merge_pdf_reports(f"report_{article}.pdf")
+            # Получаем имя директории анализа
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            session_dir = f"analysis_{timestamp}"
+            os.makedirs(session_dir, exist_ok=True)
+            
+            # Создаем объединенный PDF с именем, соответствующим артикулу, в директории анализа
+            output_pdf = os.path.join(session_dir, f"report_{article}.pdf")
+            merge_result = merge_pdf_reports(output_pdf)
             if merge_result:
-                print(f"Создан объединенный PDF-отчет: report_{article}.pdf")
+                print(f"Создан объединенный PDF-отчет: {output_pdf}")
         
         return output_file
     except Exception as e:

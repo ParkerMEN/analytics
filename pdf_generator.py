@@ -281,7 +281,7 @@ def merge_pdf_reports(output_filename=None, source_dir='pdf_reports'):
     Объединяет все PDF-файлы из указанной директории в один файл
     
     Args:
-        output_filename (str): Имя результирующего файла (без расширения)
+        output_filename (str): Имя результирующего файла или полный путь к нему
         source_dir (str): Директория с PDF-файлами для объединения
     
     Returns:
@@ -310,6 +310,12 @@ def merge_pdf_reports(output_filename=None, source_dir='pdf_reports'):
         # Добавляем расширение .pdf, если его нет
         if not output_filename.lower().endswith('.pdf'):
             output_filename += '.pdf'
+        
+        # Создаем директорию для выходного файла, если ее нет 
+        # и output_filename содержит путь
+        output_dir = os.path.dirname(output_filename)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
         
         # Создаем объект для объединения PDF
         merger = PdfMerger()

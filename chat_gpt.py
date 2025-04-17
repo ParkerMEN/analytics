@@ -628,7 +628,8 @@ plt.close('all')
                 try:
                     from PyPDF2 import PdfMerger
                     
-                    output_pdf = f"report_{article}.pdf"
+                    # Сохраняем в директорию сессии
+                    output_pdf = os.path.join(session_dir, f"report_{article}.pdf")
                     merger = PdfMerger()
                     
                     # Добавляем файлы в порядке их бизнес-приоритета
@@ -642,7 +643,6 @@ plt.close('all')
                     # Сохраняем объединенный PDF
                     merger.write(output_pdf)
                     merger.close()
-                    
                     print(f"Создан объединенный PDF-отчет: {output_pdf} (секции отсортированы по степени бизнес-критичности)")
                     return
                 except ImportError:
@@ -650,17 +650,19 @@ plt.close('all')
             
             # Если приоритизация не сработала или возникла ошибка, используем стандартный метод
             from pdf_generator import merge_pdf_reports
-            merge_result = merge_pdf_reports(f"report_{article}.pdf", source_dir=pdf_dir)
+            output_pdf = os.path.join(session_dir, f"report_{article}.pdf")
+            merge_result = merge_pdf_reports(output_pdf, source_dir=pdf_dir)
             if merge_result:
-                print(f"Создан объединенный PDF-отчет: report_{article}.pdf (стандартный порядок секций)")
+                print(f"Создан объединенный PDF-отчет: {output_pdf} (стандартный порядок секций)")
     except Exception as e:
         print(f"Ошибка при создании объединенного PDF-отчета: {e}")
         # Пробуем использовать стандартный метод при возникновении ошибки
         try:
             from pdf_generator import merge_pdf_reports
-            merge_result = merge_pdf_reports(f"report_{article}.pdf", source_dir=pdf_dir)
+            output_pdf = os.path.join(session_dir, f"report_{article}.pdf")
+            merge_result = merge_pdf_reports(output_pdf, source_dir=pdf_dir)
             if merge_result:
-                print(f"Создан объединенный PDF-отчет (стандартным методом): report_{article}.pdf")
+                print(f"Создан объединенный PDF-отчет (стандартным методом): {output_pdf}")
         except Exception as e2:
             print(f"Ошибка при создании объединенного PDF-отчета стандартным методом: {e2}")
 
