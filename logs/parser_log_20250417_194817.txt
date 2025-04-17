@@ -1,0 +1,31 @@
+2025-04-17 19:48:17,545 - INFO - Логирование настроено. Лог-файл: logs\parser_log_20250417_194817.txt
+2025-04-17 19:48:17,546 - INFO - Запуск программы парсинга отзывов Wildberries
+2025-04-17 19:48:37,297 - INFO - Введен артикул: 10973496
+2025-04-17 19:48:37,298 - INFO - Переходим на страницу товара: https://www.wildberries.ru/catalog/10973496/detail.aspx
+2025-04-17 19:48:37,298 - INFO - Открываем страницу товара: https://www.wildberries.ru/catalog/10973496/detail.aspx
+2025-04-17 19:48:42,013 - INFO - Ожидаем загрузки страницы товара (максимум 5 минут)...
+2025-04-17 19:49:11,019 - INFO - Страница товара загружена. Название товара: Холст на подрамнике 60х80 см, грунтованный, 100% лен
+2025-04-17 19:49:11,019 - INFO - Страница загружена, начинаем поиск кнопки отзывов...
+2025-04-17 19:49:11,020 - INFO - Прокрутка 1/15, поиск кнопки отзывов
+2025-04-17 19:49:12,116 - INFO - Найдена кнопка отзывов: 4,1
+164 оценки
+2025-04-17 19:49:13,251 - INFO - Кнопка отзывов: href='https://www.wildberries.ru/catalog/10973496/feedbacks?imtId=8363929&size=35087411', text='4,1
+164 оценки'
+2025-04-17 19:49:13,251 - INFO - Извлечен imtId из URL кнопки: 8363929
+2025-04-17 19:49:15,066 - INFO - Получен imt_id: 8363929
+2025-04-17 19:49:15,066 - INFO - Попытка получить отзывы для imt_id: 8363929
+2025-04-17 19:49:15,067 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v1/8363929
+2025-04-17 19:49:19,472 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v1/8363929: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v1/8363929 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-17 19:49:19,472 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v2/8363929
+2025-04-17 19:49:23,917 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v2/8363929: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v2/8363929 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-17 19:49:23,917 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v3/8363929
+2025-04-17 19:49:28,186 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v3/8363929: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v3/8363929 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-17 19:49:28,186 - INFO - Пробуем URL: https://feedbacks1.wb.ru/feedbacks/v1/8363929
+2025-04-17 19:49:30,119 - INFO - Ответ от https://feedbacks1.wb.ru/feedbacks/v1/8363929 - статус код: 200
+2025-04-17 19:49:30,121 - INFO - Ответ API сохранен в файл debug_response_feedbacks1.wb.ru_v1_1744908570.json для отладки
+2025-04-17 19:49:30,123 - INFO - Найдены отзывы! URL: https://feedbacks1.wb.ru/feedbacks/v1/8363929
+2025-04-17 19:49:30,123 - INFO - Количество отзывов: 94
+2025-04-17 19:49:30,132 - INFO - Отзывы сохранены в файл reviews_10973496.json
+2025-04-17 19:49:30,133 - INFO - Получено 94 отзывов. Средняя оценка: 3.3
+2025-04-17 19:49:30,134 - INFO - Распределение оценок: {1: 18, 2: 20, 3: 11, 4: 6, 5: 39}
+2025-04-17 19:49:30,134 - INFO - Работа программы завершена. Лог сохранен в файл logs\parser_log_20250417_194817.txt
