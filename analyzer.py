@@ -74,7 +74,7 @@ def extract_reviews_data(reviews_data):
     
     return processed_reviews
 
-def prepare_for_openai(processed_reviews, max_reviews=100):
+def prepare_for_openai(processed_reviews, max_reviews=400):
     """
     Подготавливает данные отзывов для передачи в OpenAI API
     Ограничивает количество отзывов, чтобы не превышать лимиты API

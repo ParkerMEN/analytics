@@ -9,6 +9,7 @@ import re
 from datetime import datetime
 from openai import OpenAI
 import subprocess
+import time
 
 
 def load_message_from_file(filename):
@@ -70,7 +71,16 @@ def chat_with_gpt(messages_files):
             params["messages"] = conversation_history
             
             # Отправляем запрос к API с использованием параметров
-            response = client.chat.completions.create(**params)
+            try:
+                response = client.chat.completions.create(**params)
+            except Exception as e:
+                if "rate_limit_exceeded" in str(e) and "tokens per min" in str(e):
+                    print("Превышен лимит токенов в минуту, ожидаем 60 секунд...")
+                    time.sleep(60)  # Ждем минуту
+                    # Попробовать снова
+                    response = client.chat.completions.create(**params)
+                else:
+                    raise e
 
             # Получаем текст ответа из структуры ответа
             response_text = response.choices[0].message.content
@@ -142,16 +152,64 @@ def generate_pdf_from_response(response_file, chart_file=None, output_pdf=None):
 
 def split_analytics_sections(analytics_file):
     """Разбивает файл аналитики на отдельные секции по заголовкам ###."""
-    with open(analytics_file, 'r', encoding='utf-8') as f:
-        text = f.read()
-    # Разделяем по заголовкам вида ### N. Название
-    sections = re.split(r'(###\s+\d+\..*?\n)', text)
-    result = []
-    for i in range(1, len(sections), 2):
-        header = sections[i].strip()
-        body = sections[i+1].strip() if i+1 < len(sections) else ''
-        result.append(f"{header}\n{body}")
-    return result
+    try:
+        with open(analytics_file, 'r', encoding='utf-8') as f:
+            text = f.read()
+        
+        # Проверяем формат файла и наличие заголовков
+        if "### Итоговая аналитика" in text and "1. **" in text:
+            # Ищем все основные секции (1., 2., и т.д.)
+            section_pattern = r'(\d+\.\s+\*\*[^*]+\*\*)'
+            main_sections = re.split(section_pattern, text)
+            
+            # Если разбиение прошло успешно, формируем секции
+            results = []
+            
+            # Пропускаем вступительный текст до первой секции
+            intro_text = main_sections[0].strip()
+            
+            # Каждый нечетный индекс - это заголовок, каждый четный - тело секции
+            for i in range(1, len(main_sections) - 1, 2):
+                header = main_sections[i].strip()
+                body = main_sections[i + 1].strip()
+                section_text = f"### {header}\n{body}"
+                results.append(section_text)
+            
+            if not results:
+                print(f"Предупреждение: Не найдены секции в файле {analytics_file}")
+                # Пробуем альтернативный способ разбиения - по номерам секций
+                alternative_pattern = r'(###\s+\d+\..*?\n)'
+                sections = re.split(alternative_pattern, text)
+                
+                for i in range(1, len(sections), 2):
+                    header = sections[i].strip()
+                    body = sections[i+1].strip() if i+1 < len(sections) else ''
+                    results.append(f"{header}\n{body}")
+                
+                if not results:
+                    print(f"Ошибка: Не удалось разбить файл {analytics_file} альтернативным способом")
+                    return []
+            
+            print(f"Файл аналитики успешно разбит на {len(results)} секций")
+            return results
+        else:
+            # Старый способ разбиения - используется как запасной вариант
+            sections = re.split(r'(###\s+\d+\..*?\n)', text)
+            result = []
+            for i in range(1, len(sections), 2):
+                header = sections[i].strip()
+                body = sections[i+1].strip() if i+1 < len(sections) else ''
+                result.append(f"{header}\n{body}")
+            
+            if not result:
+                print(f"Ошибка: Не удалось разбить файл {analytics_file} на секции")
+                return []
+                
+            print(f"Файл аналитики разбит на {len(result)} секций (запасной метод)")
+            return result
+    except Exception as e:
+        print(f"Ошибка при разбиении файла на секции: {e}")
+        return []
 
 def extract_python_code(text):
     """Извлекает Python-код из текстового ответа."""
@@ -366,7 +424,7 @@ def prioritize_pdf_sections(responses_dir, pdf_dir):
     
     return sorted_files
 
-def send_analytics_sections_to_gpt(analytics_file, prompt_file="prompt.txt", message2_file="message2.txt"):
+def send_analytics_sections_to_gpt(analytics_file, prompt_file="prompt.txt", message2_file="message2.txt", session_dir=None):
     """
     Отправляет секции аналитики в GPT последовательно в одном чате и сохраняет PDF-отчёты с диаграммами.
     """
@@ -376,7 +434,8 @@ def send_analytics_sections_to_gpt(analytics_file, prompt_file="prompt.txt", mes
     # Создаем временную директорию для текущего анализа
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    session_dir = f"analysis_{timestamp}"
+    if not session_dir:
+        session_dir = f"analysis_{timestamp}"
     os.makedirs(session_dir, exist_ok=True)
     
     # Создаем поддиректории
@@ -676,7 +735,9 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Анализ отзывов с использованием GPT')
+    parser.add_argument('analytics_file', nargs='?', help='Путь к файлу с аналитикой для обработки')
     parser.add_argument('--clean', action='store_true', help='Очистить все временные файлы')
+    parser.add_argument('--session-dir', help='Путь к директории сессии (для использования в full_analysis.py)')
     args = parser.parse_args()
     
     if args.clean:
@@ -691,10 +752,30 @@ if __name__ == "__main__":
         "message2.txt",     # Второе сообщение
     ]
 
-    # Новый режим: если нужно обработать все секции аналитики
-    analytics_file = "reviews_10973496_prepared_for_ai_analytics.txt"
+    # Проверяем, передан ли файл аналитики в аргументах
+    analytics_file = args.analytics_file
+    if not analytics_file or not os.path.exists(analytics_file):
+        # Пробуем найти файл аналитики для текущего запроска
+        import glob
+        analytics_files = glob.glob("reviews_*_prepared_for_ai_analytics.txt")
+        if analytics_files:
+            analytics_file = analytics_files[0]
+            print(f"Используем найденный файл аналитики: {analytics_file}")
+        else:
+            print("Ошибка: Не найден файл с аналитикой. Укажите путь к файлу.")
+            exit(1)
+    
     if os.path.exists(analytics_file):
-        send_analytics_sections_to_gpt(analytics_file)
+        # Если указан путь к директории сессии, используем его
+        if args.session_dir:
+            if os.path.exists(args.session_dir):
+                send_analytics_sections_to_gpt(analytics_file, prompt_file="prompt.txt", message2_file="message2.txt", 
+                                               session_dir=args.session_dir)
+            else:
+                print(f"Директория сессии не существует: {args.session_dir}")
+                exit(1)
+        else:
+            send_analytics_sections_to_gpt(analytics_file)
     else:
         # Проверяем наличие файлов с сообщениями
         missing_files = [f for f in messages_files if not os.path.exists(f)]

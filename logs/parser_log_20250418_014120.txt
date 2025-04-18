@@ -1,0 +1,28 @@
+2025-04-18 01:41:20,977 - INFO - Логирование настроено. Лог-файл: logs\parser_log_20250418_014120.txt
+2025-04-18 01:41:20,978 - INFO - Запуск программы парсинга отзывов Wildberries
+2025-04-18 01:41:24,076 - INFO - Введен артикул: 258375891
+2025-04-18 01:41:24,076 - INFO - Переходим на страницу товара: https://www.wildberries.ru/catalog/258375891/detail.aspx
+2025-04-18 01:41:24,076 - INFO - Открываем страницу товара: https://www.wildberries.ru/catalog/258375891/detail.aspx
+2025-04-18 01:41:29,394 - INFO - Ожидаем загрузки страницы товара (максимум 5 минут)...
+2025-04-18 01:41:44,995 - INFO - Ожидаем загрузку... Прошло 15 секунд
+2025-04-18 01:41:53,071 - INFO - Страница товара загружена. Название товара: Культиватор электрический DKET1800, 1800 Вт, 450 мм
+2025-04-18 01:41:53,071 - INFO - Ищем imtId различными методами...
+2025-04-18 01:41:53,101 - INFO - imtId найден в URL кнопки отзывов: 152797436
+2025-04-18 01:41:54,826 - INFO - Получен imt_id: 152797436
+2025-04-18 01:41:54,827 - INFO - Попытка получить отзывы для imt_id: 152797436
+2025-04-18 01:41:54,827 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v1/152797436
+2025-04-18 01:41:59,061 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v1/152797436: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v1/152797436 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-18 01:41:59,062 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v2/152797436
+2025-04-18 01:42:03,188 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v2/152797436: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v2/152797436 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-18 01:42:03,189 - INFO - Пробуем URL: https://feedbacks.wb.ru/feedbacks/v3/152797436
+2025-04-18 01:42:07,275 - ERROR - Ошибка при обращении к https://feedbacks.wb.ru/feedbacks/v3/152797436: HTTPSConnectionPool(host='feedbacks.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v3/152797436 (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2025-04-18 01:42:07,275 - INFO - Пробуем URL: https://feedbacks1.wb.ru/feedbacks/v1/152797436
+2025-04-18 01:42:08,870 - ERROR - Ошибка при обращении к https://feedbacks1.wb.ru/feedbacks/v1/152797436: HTTPSConnectionPool(host='feedbacks1.wb.ru', port=443): Max retries exceeded with url: /feedbacks/v1/152797436 (Caused by SSLError(SSLError(1, '[SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac (_ssl.c:2580)')))
+2025-04-18 01:42:08,870 - INFO - Пробуем URL: https://feedbacks1.wb.ru/feedbacks/v2/152797436
+2025-04-18 01:42:10,891 - INFO - Ответ от https://feedbacks1.wb.ru/feedbacks/v2/152797436 - статус код: 200
+2025-04-18 01:42:10,902 - INFO - Найдены отзывы! URL: https://feedbacks1.wb.ru/feedbacks/v2/152797436
+2025-04-18 01:42:10,902 - INFO - Количество отзывов: 360
+2025-04-18 01:42:10,948 - INFO - Отзывы сохранены в файл reviews_258375891.json
+2025-04-18 01:42:10,949 - INFO - Форматирование отзывов для анализа AI
+2025-04-18 01:42:10,952 - INFO - Отзывы отформатированы и сохранены в файл reviews_258375891_prepared_for_ai.txt
+2025-04-18 01:42:10,953 - INFO - Работа программы завершена. Лог сохранен в файл logs\parser_log_20250418_014120.txt

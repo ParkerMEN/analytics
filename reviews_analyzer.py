@@ -33,13 +33,15 @@ def load_prompt(prompt_file):
         print(f"Ошибка загрузки промпта: {e}")
         return None
 
-def split_reviews_into_batches(file_path, max_tokens=4000):
+def split_reviews_into_batches(file_path, max_tokens=2000, min_partitions=5, max_partitions=30):
     """
-    Разбивает файл с отзывами на части, учитывая ограничения модели GPT-4o.
+    Разбивает файл с отзывами на части, учитывая ограничения модели GPT-4.1-mini.
     
     Args:
         file_path: Путь к файлу с отзывами
-        max_tokens: Максимальное количество токенов в одной партии (по умолчанию: 4000)
+        max_tokens: Максимальное количество токенов в одной партии (по умолчанию: 2000)
+        min_partitions: Минимальное количество партий (по умолчанию: 5)
+        max_partitions: Максимальное количество партий (по умолчанию: 30)
     
     Returns:
         Tuple[List[List[str]], int]: Список партий отзывов и общее количество отзывов
@@ -66,63 +68,117 @@ def split_reviews_into_batches(file_path, max_tokens=4000):
         print(f"Средний размер отзыва: ~{avg_review_tokens} токенов")
         print(f"Всего токенов во всех отзывах: ~{total_tokens}")
         
-        # Расчет оптимального количества партий
-        # Учитываем:
-        # 1. Размер системного промпта (~1000 токенов)
-        # 2. Историю диалога (~500 токенов на каждую предыдущую партию)
-        # 3. Максимальные выходные токены (16,384 для gpt-4o)
+        # Параметры модели GPT-4.1-mini
+        max_context = 1047576  # Правильный размер контекстного окна для gpt-4.1-mini
+        model_output_tokens = 32768  # Правильный максимальный размер ответа для gpt-4.1-mini
         
-        # Безопасное ограничение для одной партии (учитывая историю)
-        safe_batch_limit = min(max_tokens, 4000)  # Не более 4000 токенов в партии
+        # Расчет оптимального количества партий для обработки до 1000 отзывов
+        # При работе с большим контекстным окном можем делать партии больше
         
-        # Минимальное количество партий
-        min_partitions = max(3, (total_tokens + safe_batch_limit - 1) // safe_batch_limit)
+        # Безопасное ограничение для одной партии (с учетом истории)
+        system_prompt_estimate = 1500  # Увеличим для возможных сложных промптов
+        history_per_batch = 1000       # Увеличим для учета истории
         
-        # Для качественной аналитики нужно минимум 5-6 партий, если объем большой
-        if total_tokens > 10000:
-            min_partitions = max(min_partitions, 5)
+        # Вычисляем, сколько отзывов можем поместить в одну партию
+        # Для GPT-4.1-mini с большим контекстом можем сделать партии больше
+        if total_reviews < 200:
+            safe_batch_limit = min(max_tokens, 5000)  # Значительно увеличиваем
+        elif total_reviews < 500:
+            safe_batch_limit = min(max_tokens, 4000)  # Увеличиваем для среднего объема
+        else:
+            safe_batch_limit = min(max_tokens, 3000)  # Увеличиваем для большого объема
+            
+        # Расчет количества партий с учетом ограничений, но оптимизируем для меньшего числа запросов
+        # Для 1000 отзывов со средним размером 50 токенов = ~50000 токенов общего объема
+        # При контексте в 1M можно значительно уменьшить количество партий
         
-        print(f"Оптимальное количество партий: ~{min_partitions}")
+        # С новым контекстным окном можем сделать меньше партий
+        calculated_partitions = max(min_partitions, (total_tokens + safe_batch_limit - 1) // safe_batch_limit)
         
-        # Формируем партии, стараясь равномерно распределить отзывы
+        # Применяем ограничения на количество партий
+        num_partitions = min(max_partitions, max(min_partitions, calculated_partitions))
+        
+        # Корректируем количество партий в зависимости от объема данных
+        # Но с большим контекстным окном нам не нужно так сильно дробить данные
+        if total_reviews > 800:
+            num_partitions = max(num_partitions, 10)  # Было 15, уменьшаем
+        elif total_reviews > 500:
+            num_partitions = max(num_partitions, 7)   # Было 10, уменьшаем
+        
+        # Дополнительный фактор: учитываем максимально допустимый размер запроса для предотвращения ошибок
+        max_request_tokens = 900000  # Максимальный безопасный размер запроса (<90% контекста)
+        
+        # Остальной код функции остаётся без изменений
+        target_batch_size = total_tokens // num_partitions
+        
         batches = []
         current_batch = []
         current_tokens = 0
-        target_batch_size = total_tokens // min_partitions
         
         for i, review in enumerate(reviews):
             review_tokens = reviews_tokens[i]
             
-            # Проверяем условия для создания новой партии:
-            # 1. Текущая партия не пуста
-            # 2. Добавление отзыва превысит безопасный лимит ИЛИ
-            # 3. Текущая партия достигла целевого размера и осталось достаточно отзывов
+            # Проверяем условия для создания новой партии
             if current_batch and (
                 (current_tokens + review_tokens > safe_batch_limit) or
-                (current_tokens >= target_batch_size and len(batches) < min_partitions - 1)
+                (current_tokens >= target_batch_size and len(batches) < num_partitions - 1)
             ):
                 batches.append(current_batch)
                 current_batch = []
                 current_tokens = 0
             
-            # Особый случай: если отдельный отзыв превышает лимит, его нужно обработать отдельно
+            # Особый случай: если отдельный отзыв превышает лимит
             if review_tokens > safe_batch_limit:
-                print(f"Предупреждение: Отзыв #{i+1} превышает лимит токенов ({review_tokens} > {safe_batch_limit})")
+                print(f"Предупреждение: Отзыв #{i+1} слишком большой ({review_tokens} > {safe_batch_limit})")
                 if current_batch:
                     batches.append(current_batch)
                     current_batch = []
                     current_tokens = 0
                 
-                # Добавляем большой отзыв в отдельную партию
+                # Для очень больших отзывов можно добавить логику разделения, пока просто добавляем
                 batches.append([review])
                 continue
             
             current_batch.append(review)
             current_tokens += review_tokens
         
-        # Добавляем последнюю партию, если она не пустая
+        # Добавляем последнюю партию
         if current_batch:
             batches.append(current_batch)
+        
+        # Если получилось слишком мало партий, перераспределяем отзывы
+        if len(batches) < min_partitions and len(batches) > 1:
+            print(f"Увеличиваем количество партий с {len(batches)} до {min_partitions}...")
+            all_reviews = [review for batch in batches for review in batch]
+            batches = []
+            reviews_per_batch = len(all_reviews) // min_partitions
+            extra = len(all_reviews) % min_partitions
+            
+            start = 0
+            for i in range(min_partitions):
+                batch_size = reviews_per_batch + (1 if i < extra else 0)
+                end = min(start + batch_size, len(all_reviews))
+                batches.append(all_reviews[start:end])
+                start = end
+            
+            print(f"Отзывы перераспределены в {len(batches)} партий")
+        
+        # Если получилось слишком много партий, объединяем некоторые
+        if len(batches) > max_partitions:
+            print(f"Уменьшаем количество партий с {len(batches)} до {max_partitions}...")
+            all_reviews = [review for batch in batches for review in batch]
+            batches = []
+            reviews_per_batch = len(all_reviews) // max_partitions
+            extra = len(all_reviews) % max_partitions
+            
+            start = 0
+            for i in range(max_partitions):
+                batch_size = reviews_per_batch + (1 if i < extra else 0)
+                end = min(start + batch_size, len(all_reviews))
+                batches.append(all_reviews[start:end])
+                start = end
+            
+            print(f"Отзывы перераспределены в {len(batches)} партий (уменьшено)")
         
         # Выводим детальную информацию о партиях
         batch_info = []
@@ -138,14 +194,14 @@ def split_reviews_into_batches(file_path, max_tokens=4000):
         print(f"Ошибка при разбиении отзывов на партии: {e}")
         return [], 0
 
-def send_to_gpt(client, messages, model="gpt-4o"):
+def send_to_gpt(client, messages, model="gpt-4.1-mini"):
     """
     Отправляет сообщения в GPT API и возвращает ответ.
     
     Args:
         client: Клиент OpenAI
         messages: Список сообщений для отправки
-        model: Название модели (по умолчанию: gpt-4o)
+        model: Название модели (по умолчанию: gpt-4.1-mini)
     
     Returns:
         str: Ответ от модели или None в случае ошибки
@@ -153,16 +209,17 @@ def send_to_gpt(client, messages, model="gpt-4o"):
     # Импортируем настройки из модуля gpt_config
     from gpt_config import DEFAULT_API_PARAMS
     
-    max_retries = 3
-    retry_delay = 5
+    max_retries = 5  # Увеличено количество попыток
+    base_retry_delay = 5
     
     # Оцениваем размер запроса для логирования
     total_chars = sum(len(msg.get("content", "")) for msg in messages)
     approx_tokens = total_chars // 4
     
     # Оценка размера запроса и остаточного контекста
-    max_context = 128000  # Максимальное контекстное окно для gpt-4o
-    max_output = 16384    # Максимальные выходные токены для gpt-4o
+    # Актуальные параметры для GPT-4.1-mini
+    max_context = 1047576  # Правильный размер контекстного окна для gpt-4.1-mini
+    max_output = 32768     # Максимальный размер ответа для gpt-4.1-mini
     
     # Вычисляем примерный остаток для ответа
     remaining_context = max_context - approx_tokens
@@ -180,13 +237,16 @@ def send_to_gpt(client, messages, model="gpt-4o"):
     if remaining_context < max_output * 0.3:
         print("ВНИМАНИЕ: Оставшегося контекста может не хватить для полноценного ответа!")
     
+    # Адаптивное управление повторными попытками
     for retry in range(max_retries):
         try:
             # Используем параметры по умолчанию из gpt_config
             params = DEFAULT_API_PARAMS.copy()
             params["model"] = model
             params["messages"] = messages
-            params["max_tokens"] = min(params["max_tokens"], remaining_context)
+            
+            # Ограничиваем максимальный размер ответа исходя из оставшегося контекста
+            params["max_tokens"] = min(params.get("max_tokens", max_output), remaining_context)
             
             response = client.chat.completions.create(**params)
             return response.choices[0].message.content
@@ -194,20 +254,31 @@ def send_to_gpt(client, messages, model="gpt-4o"):
             error_msg = str(e)
             print(f"Ошибка при обращении к API (попытка {retry+1}/{max_retries}): {e}")
             
-            # Специальная обработка ошибки превышения контекста
+            # Расширенная обработка ошибок для разных случаев
             if "maximum context length" in error_msg:
                 print("Превышен максимальный размер контекста. Необходимо уменьшить размер партий.")
                 return None
             
-            # Обработка ошибок по размеру запроса
-            if "too many tokens" in error_msg.lower():
+            elif "too many tokens" in error_msg.lower():
                 print("Запрос содержит слишком много токенов. Попробуйте уменьшить размер партии.")
                 return None
                 
+            elif "rate_limit_exceeded" in error_msg and "tokens per min" in error_msg:
+                # Специальная обработка для ошибки TPM (tokens per minute)
+                wait_time = 65 * (retry + 1)  # Увеличиваем время ожидания с каждой попыткой
+                print(f"Превышен лимит токенов в минуту (TPM). Ожидаем {wait_time} секунд...")
+                time.sleep(wait_time)
+                continue  # Продолжаем после ожидания без увеличения retry_delay
+                
+            elif "Request too large" in error_msg:
+                print("Запрос слишком большой для обработки моделью. Нужно уменьшить размер партий.")
+                return None
+            
+            # Для других ошибок используем экспоненциальное увеличение задержки
             if retry < max_retries - 1:
+                retry_delay = base_retry_delay * (2 ** retry)  # Экспоненциальное увеличение
                 print(f"Повторная попытка через {retry_delay} секунд...")
                 time.sleep(retry_delay)
-                retry_delay *= 2  # Увеличиваем задержку между попытками
             else:
                 print("Исчерпаны все попытки обращения к API.")
                 return None
@@ -265,6 +336,24 @@ def process_reviews(reviews_file, prompt_file="my_prompt.txt", task_file="task_f
         else:
             print(f"Ошибка при обработке партии {batch_number}. Процесс прерван.")
             return None
+        
+        # Если обработали много партий, может накопиться большая история
+        # После некоторого количества партий, сжимаем историю
+        if len(batches) > 5:  # После обработки 5+ партий
+            # Запрашиваем промежуточный итог
+            print("Оптимизация контекста диалога...")
+            summary_request = "Пожалуйста, дай краткий итог по всем прочитанным отзывам для оптимизации контекста."
+            conversation.append({"role": "user", "content": summary_request})
+            
+            summary = send_to_gpt(client, conversation, model)
+            if summary:
+                # Создаем новый, более компактный контекст с итогом
+                conversation = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Вот итоги предыдущего анализа отзывов:\n\n{summary}"},
+                    {"role": "assistant", "content": "Я принял к сведению итоги предыдущего анализа и учту их в дальнейшей работе."}
+                ]
+                print("Контекст диалога успешно оптимизирован.")
     
     # Загружаем финальное задание для анализа
     final_task = load_prompt(task_file)
@@ -360,19 +449,29 @@ def main():
     """
     import argparse
     
-    parser = argparse.ArgumentParser(description="Анализ отзывов с помощью GPT-4o")
+    parser = argparse.ArgumentParser(description="Анализ отзывов с помощью GPT-4.1-mini")
     parser.add_argument("reviews_file", nargs='?', default="reviews_10973496_prepared_for_ai.txt", 
-                        help="Путь к файлу с подготовленными отзывами (по умолчанию: reviews_10973496_prepared_for_ai.txt)")
+                        help="Путь к файлу с подготовленными отзывами")
     parser.add_argument("-p", "--prompt", default="my_prompt.txt", 
-                        help="Путь к файлу с системным промптом (по умолчанию: my_prompt.txt)")
+                        help="Путь к файлу с системным промптом")
     parser.add_argument("-t", "--task", default="task_file.txt", 
-                        help="Путь к файлу с заданием для финального анализа (по умолчанию: task_file.txt)")
-    parser.add_argument("-m", "--max-tokens", type=int, default=4000,
+                        help="Путь к файлу с заданием для финального анализа")
+    parser.add_argument("-m", "--max-tokens", type=int, default=4000,  # Увеличено с 2000 до 4000
                         help="Максимальное количество токенов в одной партии (по умолчанию: 4000)")
-    parser.add_argument("--min-partitions", type=int, default=5,
-                        help="Минимальное количество партий (по умолчанию: 5)")
+    parser.add_argument("--min-partitions", type=int, default=3,       # Уменьшено с 5 до 3
+                        help="Минимальное количество партий (по умолчанию: 3)")
+    parser.add_argument("--max-partitions", type=int, default=20,      # Оптимизировано с 50 до 20
+                        help="Максимальное количество партий (по умолчанию: 20)")
+    parser.add_argument("--model", default="gpt-4.1-mini",
+                        help="Модель GPT для использования (по умолчанию: gpt-4.1-mini)")
     
     args = parser.parse_args()
+    
+    # Проверка валидности параметров
+    if args.max_partitions < args.min_partitions:
+        print(f"Ошибка: max_partitions ({args.max_partitions}) не может быть меньше min_partitions ({args.min_partitions})")
+        args.max_partitions = args.min_partitions
+        print(f"Установлено max_partitions = {args.min_partitions}")
     
     # Если файл не указан явно, используем default
     reviews_file = args.reviews_file
@@ -390,41 +489,28 @@ def main():
         print(f"Внимание: Файл с финальным заданием не найден: {args.task}")
         print("Будет использовано стандартное задание для анализа.")
     
-    # Обновляем функцию split_reviews_into_batches с новым значением max_tokens
+    # Обновляем глобальные переменные для процесса обработки
+    global send_to_gpt
+    original_send_to_gpt = send_to_gpt
+    
+    def custom_send_to_gpt(client, messages, model=None):
+        if model is None:
+            model = args.model
+        return original_send_to_gpt(client, messages, model)
+    
+    send_to_gpt = custom_send_to_gpt
+    
+    # Обновляем функцию split_reviews_into_batches с новыми параметрами
     global split_reviews_into_batches
     original_function = split_reviews_into_batches
     
-    # Создаем обертку для функции разбиения с нужными параметрами
     def custom_split(file_path):
-        # Изменяем внутреннее поведение функции для учета минимального количества партий
-        nonlocal args
-        try:
-            batches, total = original_function(file_path, args.max_tokens)
-            if len(batches) < args.min_partitions and len(batches) > 1 and total > 0:
-                print(f"Увеличиваем количество партий до {args.min_partitions}...")
-                # Перераспределяем отзывы для достижения минимального количества партий
-                all_reviews = [review for batch in batches for review in batch]
-                batches = []
-                reviews_per_batch = len(all_reviews) // args.min_partitions
-                extra = len(all_reviews) % args.min_partitions
-                
-                start = 0
-                for i in range(args.min_partitions):
-                    batch_size = reviews_per_batch + (1 if i < extra else 0)
-                    end = min(start + batch_size, len(all_reviews))
-                    batches.append(all_reviews[start:end])
-                    start = end
-                
-                print(f"Отзывы перераспределены в {len(batches)} партий")
-            return batches, total
-        except Exception as e:
-            print(f"Ошибка при разбиении отзывов: {e}")
-            return [], 0
+        return original_function(file_path, args.max_tokens, args.min_partitions, args.max_partitions)
     
     split_reviews_into_batches = custom_split
     
     # Запускаем процесс анализа
-    print(f"Начало анализа файла отзывов: {reviews_file}")
+    print(f"Начало анализа файла отзывов: {reviews_file} с моделью {args.model}")
     result_file = process_reviews(reviews_file, args.prompt, args.task)
     
     if result_file:
