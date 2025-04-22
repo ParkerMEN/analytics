@@ -1,0 +1,146 @@
+{
+  "report_date": "2025-04-22 01:10:03",
+  "data_file": "all_reviews.json",
+  "reviews_count": 360,
+  "metrics": {
+    "topics": {
+      "available": true,
+      "unique_count": 378,
+      "top_topics": {
+        "доставка": 55,
+        "качество товара": 54,
+        "удобство использования": 46,
+        "упаковка": 46,
+        "комплектация": 29,
+        "работа устройства": 26,
+        "функциональность": 26,
+        "работоспособность": 26,
+        "сборка": 25,
+        "рекомендации": 21
+      },
+      "visualization_options": [
+        "bar_chart",
+        "wordcloud",
+        "pie_chart"
+      ]
+    },
+    "ratings": {
+      "available": true,
+      "mean": 4.485623003194888,
+      "median": 5.0,
+      "min": 1.0,
+      "max": 5.0,
+      "distribution": {
+        "5.0": 252,
+        "1.0": 25,
+        "4.0": 18,
+        "3.0": 11,
+        "2.0": 7
+      },
+      "visualization_options": [
+        "histogram",
+        "bar_chart",
+        "pie_chart"
+      ]
+    },
+    "dates": {
+      "available": true,
+      "column": "дата",
+      "min_date": "2023-03-08",
+      "max_date": "2025-04-21",
+      "visualization_options": [
+        "timeline",
+        "calendar_heatmap"
+      ]
+    },
+    "sentiment": {
+      "available": true,
+      "column": "эмоциональная окраска",
+      "distribution": {
+        "позитивная с небольшой осторожностью": 1,
+        "негативная": 1,
+        "положительная": 1
+      },
+      "visualization_options": [
+        "pie_chart",
+        "bar_chart"
+      ]
+    },
+    "pros_cons": {
+      "available": true,
+      "pros_columns": [
+        "достоинства",
+        "advantages",
+        "disadvantages",
+        "pros",
+        "advantages_mentioned",
+        "has_pros",
+        "pros_text",
+        "disadvantages_mentioned"
+      ],
+      "cons_columns": [
+        "недостатки",
+        "disadvantages",
+        "cons",
+        "disadvantages_mentioned"
+      ],
+      "visualization_options": [
+        "wordcloud",
+        "comparison_cloud"
+      ]
+    },
+    "numeric_stats": {
+      "available": true,
+      "columns": [
+        "review_idx",
+        "rating_normalized",
+        "рейтинг",
+        "отзыв_id",
+        "rating",
+        "review_id",
+        "отзыв_номер",
+        "номер_отзыва",
+        "text_length",
+        "price",
+        "time_spent_minutes",
+        "order_quantity",
+        "depth_of_cultivation_cm",
+        "length",
+        "age_reviewer",
+        "emojis_used",
+        "delivery_time_days",
+        "battery_life_hours",
+        "battery_charge_time_hours",
+        "price_rub"
+      ],
+      "visualization_options": [
+        "box_plot",
+        "histogram",
+        "scatter_plot"
+      ]
+    }
+  },
+  "insights": [
+    {
+      "title": "Общая удовлетворенность продуктом",
+      "description": "Высокая удовлетворенность продуктом (средняя оценка 4.49/5). Большинство отзывов положительные.",
+      "significance": "high"
+    },
+    {
+      "title": "Ключевые темы в отзывах",
+      "description": "Наиболее часто упоминаемые темы: доставка (55), качество товара (54), удобство использования (46). Эти аспекты продукта заслуживают особого внимания.",
+      "significance": "medium"
+    },
+    {
+      "title": "Проблемные аспекты продукта",
+      "description": "В отзывах с низкими оценками чаще всего упоминаются: качество товара (16), обслуживание клиентов (6), упаковка (6). Эти аспекты требуют улучшения.",
+      "significance": "high"
+    },
+    {
+      "title": "Динамика удовлетворенности со временем",
+      "description": "Удовлетворенность продуктом снижается со временем (-0.67 баллов).",
+      "significance": "medium"
+    }
+  ],
+  "visualizations": []
+}
