@@ -160,10 +160,16 @@ class SplitterAgent:
         return batch_files
 
 # Пример использования:
-# async def main():
-#     agent = SplitterAgent(openai_api_key="YOUR_API_KEY")
-#     await agent.process("reviews.txt")
-#
-# if __name__ == "__main__":
-#     import asyncio
-#     asyncio.run(main())
+async def main():
+    # Укажите ваш API-ключ
+    api_key = "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"  # Замените на ваш реальный ключ
+    # Укажите путь к файлу с отзывами
+    reviews_file = "reviews_258375891_prepared_for_ai.txt"  # Замените на ваш файл
+    # Создайте экземпляр SplitterAgent
+    agent = SplitterAgent(openai_api_key=api_key)
+    # Запустите обработку
+    await agent.process(reviews_file)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

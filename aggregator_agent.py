@@ -85,7 +85,12 @@ class AggregatorAgent:
             json.dump(reviews, f, ensure_ascii=False, indent=2)
         self.logger.info(f"Агрегированные отзывы сохранены в {output_file}")
 
-# Пример использования:
-# agent = AggregatorAgent(batches_dir="session_xxx/batches")
-# all_reviews = agent.aggregate()
-# agent.save_aggregated("all_reviews.json", all_reviews)
+if __name__ == "__main__":
+    # Пример использования:
+    batches_dir = "session_8def6620-ef40-4d6f-b0c0-fc7578e3428f/batches"  # Укажите путь к папке с batch-файлами
+    output_file = "all_reviews.json"  # Укажите имя выходного файла
+
+    agent = AggregatorAgent(batches_dir=batches_dir)
+    all_reviews = agent.aggregate()
+    agent.save_aggregated(output_file, all_reviews)
+    print(f"Собрано отзывов: {len(all_reviews)}. Сохранено в {output_file}")
