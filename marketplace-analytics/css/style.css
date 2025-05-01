@@ -124,3 +124,71 @@ h1, h2, h3, h4, h5, h6 {
         max-width: 1140px;
     }
 }
+
+/* Visualization Cards */
+.visualization-card {
+    height: 450px; /* Увеличиваем высоту */
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.visualization-content {
+    flex-grow: 1;
+    min-height: 350px; /* Увеличиваем минимальную высоту */
+    position: relative;
+    overflow: hidden;
+}
+
+/* Добавляем масштабирование контента iframe */
+.visualization-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    transform: scale(1); /* Начальный масштаб */
+    transform-origin: 0 0; /* Точка трансформации */
+}
+
+/* Добавим возможность развернуть на весь экран */
+.viz-fullscreen-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    border: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.viz-fullscreen-btn:hover {
+    opacity: 1;
+}
+
+/* Оптимизация для разных разрешений экрана */
+.visualizations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); /* Увеличиваем минимальную ширину */
+    gap: 25px;
+    margin-top: 30px;
+}
+
+@media (min-width: 1400px) {
+    .visualizations-grid {
+        grid-template-columns: repeat(4, 1fr); /* Фиксированные 4 колонки для больших экранов */
+    }
+}
+
+@media (min-width: 1800px) {
+    .visualizations-grid {
+        grid-template-columns: repeat(5, 1fr); /* 5 колонок для очень больших экранов */
+    }
+}

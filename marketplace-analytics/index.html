@@ -26,6 +26,132 @@
     <link href="css/style.css" rel="stylesheet">
     <!-- Favicon -->
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+    
+    <style>
+        /* Additional styles for visualizations grid */
+        .visualizations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        @media (min-width: 768px) {
+            .visualizations-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1200px) {
+            .visualizations-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (min-width: 1400px) {
+            .visualizations-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        @media (min-width: 1800px) {
+            .visualizations-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+        
+        .visualization-card {
+            height: 450px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .visualization-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        .visualization-content {
+            flex-grow: 1;
+            min-height: 350px;
+            position: relative;
+            overflow: visible;
+        }
+        
+        .visualization-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            transform: scale(1);
+            transform-origin: 0 0;
+        }
+        
+        .visualization-fallback {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f8f9fa;
+            color: #6c757d;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .visualization-loader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 5;
+        }
+        
+        .visualization-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-left-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+        
+        .viz-fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            border: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .viz-fullscreen-btn:hover {
+            opacity: 1;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <!-- Header -->
@@ -50,6 +176,9 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#analytics">Аналитика</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#visualizations">Визуализации</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#summary">Выводы</a>
@@ -126,9 +255,65 @@
                 </div>
             </div>
         </section>
+        
+        <!-- Visualizations Section -->
+        <section id="visualizations" class="py-5 bg-light">
+            <div class="container-fluid px-4">
+                <h2 class="text-center mb-4 fade-in">Детальные визуализации данных</h2>
+                <p class="text-center mb-5 fade-in">Интерактивные графики и диаграммы, демонстрирующие ключевые аспекты аналитики.</p>
+                
+                <div class="mb-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="viz-search" class="form-control" placeholder="Поиск по визуализациям...">
+                        <button id="viz-filter-toggle" class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-funnel"></i> Фильтры
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="viz-filters" class="card mb-4 shadow-sm" style="display: none;">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="viz-category" class="form-label">Категория</label>
+                                <select id="viz-category" class="form-select">
+                                    <option value="all" selected>Все категории</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="viz-type" class="form-label">Тип диаграммы</label>
+                                <select id="viz-type" class="form-select">
+                                    <option value="all" selected>Все типы</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <button id="reset-filters" class="btn btn-outline-secondary d-block w-100">Сбросить фильтры</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Visualizations Grid - Will be populated by JavaScript -->
+                <div id="visualizations-grid" class="visualizations-grid fade-in">
+                    <!-- Visualizations will be loaded here -->
+                </div>
+                
+                <div id="viz-pagination" class="mt-4 d-flex justify-content-center">
+                    <!-- Pagination will be inserted here if needed -->
+                </div>
+                
+                <div id="no-visualizations" class="alert alert-info text-center mt-4" style="display: none;">
+                    Визуализации не найдены или отсутствуют. Пожалуйста, измените критерии поиска.
+                </div>
+            </div>
+        </section>
 
         <!-- Summary Section -->
-        <section id="summary" class="bg-light py-5">
+        <section id="summary" class="py-5">
             <div class="container">
                 <div class="row">
                     <div class="col-lg-8 mx-auto text-center fade-in">
@@ -214,6 +399,21 @@
     <button id="back-to-top" class="btn btn-primary rounded-circle">
         <i class="bi bi-arrow-up"></i>
     </button>
+    
+    <!-- Fullscreen Visualization Modal -->
+    <div class="modal fade" id="vizFullscreenModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body d-flex align-items-center justify-content-center">
+                    <div class="position-relative w-100 h-100" id="fullscreen-viz-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Bootstrap 5 JS Bundle (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -221,6 +421,8 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Custom JS -->
     <script src="js/scripts.js"></script>
+    <!-- Visualizations JS -->
+    <script src="js/visualizations.js"></script>
     <!-- Отложенная загрузка некритичных скриптов -->
     <script src="js/non-critical.js" defer></script>
 </body>
