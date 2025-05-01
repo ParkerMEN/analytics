@@ -415,132 +415,131 @@
         
         if (!content || !loader || !fallback) return;
         
+        // Создание миниатюры для предпросмотра
+        const thumbnailContainer = document.createElement('div');
+        thumbnailContainer.className = 'viz-thumbnail-container';
+        thumbnailContainer.style.width = '100%';
+        thumbnailContainer.style.height = '100%';
+        thumbnailContainer.style.position = 'relative';
+        content.appendChild(thumbnailContainer);
+        
+        // Если доступна функция создания миниатюры, используем её
+        if (window.vizThumbnails && window.vizThumbnails.createThumbnail) {
+            window.vizThumbnails.createThumbnail(viz.id, viz.path, thumbnailContainer);
+            loader.style.display = 'none';
+        }
+        
         // Добавляем кнопку полноэкранного режима
         const fullscreenBtn = document.createElement('button');
         fullscreenBtn.className = config.classes.fullscreenBtn;
         fullscreenBtn.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
-        fullscreenBtn.title = 'Развернуть на весь экран';
+        fullscreenBtn.title = 'Открыть визуализацию';
         content.appendChild(fullscreenBtn);
         
-        // Создание iframe
-        const iframe = document.createElement('iframe');
-        iframe.className = config.classes.iframe;
-        iframe.title = viz.title;
-        iframe.sandbox = 'allow-scripts allow-same-origin';
-        iframe.loading = 'lazy';
-        iframe.style.opacity = '0';
-        iframe.style.transition = 'opacity 0.3s';
-        
-        // Добавление iframe в контейнер
-        content.appendChild(iframe);
-        
-        // Таймаут для iframe
-        const timeoutId = setTimeout(() => {
-            if (iframe.contentDocument && iframe.contentDocument.readyState !== 'complete') {
-                showError();
-            }
-        }, config.iframeTimeout);
-        
-        // Обработка успешной загрузки
-        iframe.onload = function() {
-            clearTimeout(timeoutId);
-            loader.style.display = 'none';
-            iframe.style.opacity = '1';
+        // Делаем всю карточку кликабельной для открытия визуализации
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', function(event) {
+            // Предотвращаем открытие при клике на кнопки и другие интерактивные элементы
+            if (event.target.closest('.retry-btn')) return;
             
-            // Умное масштабирование iframe для оптимального отображения
-            try {
-                const iframeContent = iframe.contentDocument.body.firstChild;
-                if (iframeContent) {
-                    const contentWidth = iframeContent.offsetWidth;
-                    const contentHeight = iframeContent.offsetHeight;
-                    const containerWidth = content.offsetWidth;
-                    const containerHeight = content.offsetHeight;
-                    
-                    const scaleX = containerWidth / contentWidth;
-                    const scaleY = containerHeight / contentHeight;
-                    const scale = Math.min(scaleX, scaleY, 1);
-                    
-                    if (scale < 1) {
-                        iframe.style.transform = `scale(${scale})`;
-                        iframe.style.width = `${100 / scale}%`;
-                        iframe.style.height = `${100 / scale}%`;
-                        iframe.style.transformOrigin = 'top left';
-                    }
-                }
-            } catch (e) {
-                console.warn('Не удалось оптимизировать масштаб iframe:', e);
-            }
-        };
+            // Открываем модальное окно с визуализацией
+            openVisualizationModal(viz);
+        });
         
-        // Обработчик для кнопки полноэкранного режима
-        fullscreenBtn.addEventListener('click', () => {
-            const modal = document.getElementById('vizFullscreenModal');
+        // Функция открытия модального окна с визуализацией
+        function openVisualizationModal(viz) {
+            const modal = document.getElementById('vizModal') || createVizModal();
             if (!modal) return;
             
-            // Если Bootstrap доступен, используем его API
-            let bsModal;
-            if (state.bootstrap && state.bootstrap.Modal) {
-                bsModal = new state.bootstrap.Modal(modal);
-            } else if (window.bootstrap && window.bootstrap.Modal) {
-                bsModal = new window.bootstrap.Modal(modal);
-            }
-            
-            // Установить заголовок модального окна
+            // Устанавливаем заголовок модального окна
             const modalTitle = modal.querySelector('.modal-title');
             if (modalTitle) modalTitle.textContent = viz.title;
             
-            // Создать копию iframe для модального окна
-            const modalContainer = document.getElementById('fullscreen-viz-container');
+            // Очищаем и заполняем контейнер визуализации
+            const modalContainer = document.getElementById('viz-container');
             if (modalContainer) {
                 modalContainer.innerHTML = '';
                 
+                // Добавляем лоадер
+                const modalLoader = document.createElement('div');
+                modalLoader.className = config.classes.loader;
+                modalLoader.innerHTML = `<div class="${config.classes.spinner}"></div>`;
+                modalContainer.appendChild(modalLoader);
+                
+                // Создаем iframe для загрузки визуализации
                 const modalIframe = document.createElement('iframe');
-                modalIframe.className = 'w-100 h-100 border-0';
+                modalIframe.className = 'viz-modal-iframe';
+                modalIframe.style.width = '100%';
+                modalIframe.style.height = '100%';
+                modalIframe.style.border = 'none';
+                modalIframe.style.opacity = '0';
+                modalIframe.style.transition = 'opacity 0.3s';
                 modalIframe.src = config.visualizationsPath + viz.path;
                 modalContainer.appendChild(modalIframe);
+                
+                // Обработчик загрузки iframe
+                modalIframe.onload = function() {
+                    modalLoader.style.display = 'none';
+                    modalIframe.style.opacity = '1';
+                    
+                    // Отправляем сообщение для адаптации размеров
+                    try {
+                        const message = {
+                            type: 'resize-plotly',
+                            width: modalContainer.clientWidth,
+                            height: modalContainer.clientHeight
+                        };
+                        modalIframe.contentWindow.postMessage(message, '*');
+                    } catch (e) {
+                        console.error('Ошибка при отправке сообщения в iframe:', e);
+                    }
+                };
             }
             
-            // Показать модальное окно
-            if (bsModal) {
+            // Показываем модальное окно
+            if (window.bootstrap && window.bootstrap.Modal) {
+                const bsModal = new window.bootstrap.Modal(modal);
                 bsModal.show();
-            } else if (modal.show) {
-                modal.show();
+            } else {
+                modal.style.display = 'block';
             }
-        });
-        
-        // Обработка ошибки загрузки
-        iframe.onerror = showError;
-        
-        // Загрузка контента
-        try {
-            iframe.src = config.visualizationsPath + viz.path;
-        } catch (e) {
-            showError();
         }
         
-        // Функция отображения ошибки
-        function showError() {
-            clearTimeout(timeoutId);
-            loader.style.display = 'none';
-            fallback.style.display = 'flex';
+        // Функция создания модального окна для визуализации
+        function createVizModal() {
+            // Проверяем, существует ли модальное окно
+            let modal = document.getElementById('vizModal');
+            if (modal) return modal;
             
-            if (iframe.parentNode) {
-                iframe.parentNode.removeChild(iframe);
-            }
+            // Создаем новое модальное окно
+            modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'vizModal';
+            modal.setAttribute('tabindex', '-1');
+            modal.setAttribute('aria-hidden', 'true');
             
-            if (fullscreenBtn.parentNode) {
-                fullscreenBtn.parentNode.removeChild(fullscreenBtn);
-            }
+            // Создаем структуру модального окна
+            modal.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Визуализация</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <div id="viz-container" style="height: 500px; position: relative;"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            // Добавление обработчика для кнопки повтора
-            const retryBtn = fallback.querySelector('.retry-btn');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', function() {
-                    fallback.style.display = 'none';
-                    loader.style.display = 'flex';
-                    loadVisualization(card, viz, elements);
-                });
-            }
+            // Добавляем модальное окно в документ
+            document.body.appendChild(modal);
+            
+            return modal;
         }
     }
     
@@ -672,4 +671,52 @@
 
     // Инициализация при загрузке DOM
     document.addEventListener('DOMContentLoaded', init);
+
+    // ========================
+    // Внешний API для работы с визуализациями
+    // ========================
+    window.visualizationManager = {
+        // Получение списка всех визуализаций
+        getVisualizations: function() {
+            return visualizations;
+        },
+        
+        // Получение визуализации по ID
+        getVisualizationById: function(id) {
+            return visualizations.find(v => v.id === id);
+        },
+        
+        // Открытие визуализации в модальном окне
+        openVisualization: function(vizId) {
+            const viz = this.getVisualizationById(vizId);
+            if (viz) {
+                const card = document.querySelector(`.visualization-card[data-viz-id="${vizId}"]`);
+                const elements = {};
+                Object.entries(config.selectors).forEach(([key, selector]) => {
+                    elements[key] = document.querySelector(selector);
+                });
+                
+                loadVisualization(card, viz, elements);
+                
+                // Искусственно вызываем клик для открытия модального окна
+                card.click();
+            }
+        },
+        
+        // Фильтрация визуализаций
+        filterVisualizations: function(criteria) {
+            if (typeof criteria === 'object') {
+                if (criteria.search) state.filter.search = criteria.search.toLowerCase();
+                if (criteria.category) state.filter.category = criteria.category;
+                if (criteria.type) state.filter.type = criteria.type;
+                
+                const elements = {};
+                Object.entries(config.selectors).forEach(([key, selector]) => {
+                    elements[key] = document.querySelector(selector);
+                });
+                
+                filterAndDisplayVisualizations(elements);
+            }
+        }
+    };
 })();

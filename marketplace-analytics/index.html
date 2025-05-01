@@ -400,16 +400,40 @@
         <i class="bi bi-arrow-up"></i>
     </button>
     
-    <!-- Fullscreen Visualization Modal -->
+    <!-- Модальное окно для просмотра визуализаций (половина экрана) -->
+    <div class="modal fade" id="vizModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Визуализация</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="viz-container" style="height: 500px; position: relative;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="button" class="btn btn-primary" id="fullscreen-btn">
+                        <i class="bi bi-arrows-fullscreen"></i> На весь экран
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Существующее модальное окно для полноэкранного режима -->
     <div class="modal fade" id="vizFullscreenModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"></h5>
+                    <h5 class="modal-title">Визуализация</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body d-flex align-items-center justify-content-center">
-                    <div class="position-relative w-100 h-100" id="fullscreen-viz-container"></div>
+                <div class="modal-body p-0">
+                    <div id="fullscreen-viz-container" style="height: calc(100vh - 120px);"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
                 </div>
             </div>
         </div>
@@ -421,9 +445,77 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Custom JS -->
     <script src="js/scripts.js"></script>
-    <!-- Visualizations JS -->
+    <!-- Визуализации и работа с миниатюрами -->
     <script src="js/visualizations.js"></script>
+    <script src="js/viz-thumbnails.js"></script>
+    <!-- Адаптер графиков для автоматического изменения размеров -->
+    <script src="js/chart-adapter.js"></script>
     <!-- Отложенная загрузка некритичных скриптов -->
     <script src="js/non-critical.js" defer></script>
+
+    <script>
+    // Инициализация обработчика для переключения между модальными окнами
+    document.addEventListener('DOMContentLoaded', function() {
+        document.body.addEventListener('click', function(event) {
+            if (event.target.id === 'fullscreen-btn' || event.target.closest('#fullscreen-btn')) {
+                // Закрываем текущее модальное окно
+                const currentModal = bootstrap.Modal.getInstance(document.getElementById('vizModal'));
+                if (currentModal) {
+                    currentModal.hide();
+                }
+                
+                // Получаем данные текущей визуализации
+                const modalTitle = document.querySelector('#vizModal .modal-title').textContent;
+                const vizId = Array.from(visualizationManager.getVisualizations())
+                    .find(v => v.title === modalTitle)?.id;
+                
+                if (vizId) {
+                    // Небольшая задержка для плавного перехода
+                    setTimeout(() => {
+                        // Получаем данные визуализации
+                        const viz = visualizationManager.getVisualizationById(vizId);
+                        if (!viz) return;
+                        
+                        // Открываем полноэкранное модальное окно
+                        const fullscreenModal = document.getElementById('vizFullscreenModal');
+                        const modalTitle = fullscreenModal.querySelector('.modal-title');
+                        if (modalTitle) modalTitle.textContent = viz.title;
+                        
+                        const container = document.getElementById('fullscreen-viz-container');
+                        if (container) {
+                            container.innerHTML = '';
+                            
+                            // Создаем iframe
+                            const iframe = document.createElement('iframe');
+                            iframe.className = 'w-100 h-100 border-0';
+                            iframe.style.opacity = '0';
+                            iframe.style.transition = 'opacity 0.3s';
+                            iframe.src = '../analytics_output/visualizations/' + viz.path;
+                            
+                            // Создаем лоадер
+                            const loader = document.createElement('div');
+                            loader.className = 'visualization-loader';
+                            loader.innerHTML = '<div class="visualization-spinner"></div>';
+                            
+                            container.appendChild(loader);
+                            container.appendChild(iframe);
+                            
+                            // Обработка загрузки iframe
+                            iframe.onload = function() {
+                                loader.style.display = 'none';
+                                iframe.style.opacity = '1';
+                            };
+                        }
+                        
+                        // Открываем модальное окно
+                        const bsFullscreenModal = new bootstrap.Modal(fullscreenModal);
+                        bsFullscreenModal.show();
+                    }, 300);
+                }
+            }
+        });
+    });
+    </script>
 </body>
 </html>
+``` 

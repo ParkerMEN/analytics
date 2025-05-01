@@ -192,3 +192,81 @@ h1, h2, h3, h4, h5, h6 {
         grid-template-columns: repeat(5, 1fr); /* 5 колонок для очень больших экранов */
     }
 }
+
+/* Стили для миниатюр визуализаций */
+.viz-thumbnail {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    overflow: hidden;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+
+.viz-thumbnail-canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.viz-thumbnail::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(255,255,255,0) 80%, rgba(255,255,255,0.8) 100%);
+    pointer-events: none;
+}
+
+.viz-thumbnail:hover {
+    box-shadow: inset 0 0 0 2px var(--primary-color);
+}
+
+/* Обновляем стили для модального окна визуализаций */
+#vizModal .modal-dialog {
+    max-width: 800px;
+    margin: 1.75rem auto;
+}
+
+#vizModal .modal-content {
+    overflow: hidden;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.25);
+}
+
+#vizModal .modal-body {
+    padding: 0;
+    background-color: #fafafa;
+    overflow: hidden;
+}
+
+#viz-container {
+    width: 100%;
+    height: 500px;
+    position: relative;
+    overflow: hidden;
+}
+
+.viz-modal-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: white;
+}
+
+/* Улучшенные стили для полноэкранного модального окна */
+#vizFullscreenModal .modal-content {
+    height: 100%;
+}
+
+#fullscreen-viz-container {
+    width: 100%;
+    height: calc(100vh - 120px);
+    position: relative;
+    overflow: hidden;
+}
