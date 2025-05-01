@@ -1,0 +1,53 @@
+2025-04-28 23:03:14,311 - VisualizationDataCollector - INFO - VisualizationDataCollector initialized
+2025-04-28 23:03:14,311 - VisualizationDataCollector - INFO - Starting visualization data collection...
+2025-04-28 23:03:14,312 - VisualizationDataCollector - INFO - Found 10 visualization reports
+2025-04-28 23:03:14,322 - VisualizationDataCollector - INFO - Found 0 image files and 0 HTML files
+2025-04-28 23:03:14,322 - VisualizationDataCollector - INFO - Normalizing 0 HTML files to use Plotly CDN
+2025-04-28 23:03:14,322 - VisualizationDataCollector - INFO - No visualization files found. Running scripts to create them...
+2025-04-28 23:03:14,324 - VisualizationDataCollector - INFO - Found 10 visualization scripts
+2025-04-28 23:03:14,324 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_10_Частота_упоминаний_достоинств_(положительных_аспектов).py
+2025-04-28 23:03:18,039 - VisualizationDataCollector - INFO - Script viz_10_Частота_упоминаний_достоинств_(положительных_аспектов).py executed successfully
+2025-04-28 23:03:18,040 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_1_Распределение_рейтингов_отзывов.py
+2025-04-28 23:03:19,112 - VisualizationDataCollector - ERROR - Script viz_1_Распределение_рейтингов_отзывов.py failed with return code 1
+2025-04-28 23:03:19,112 - VisualizationDataCollector - ERROR - Error output: None
+2025-04-28 23:03:19,113 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_2_Частота_упоминаний_ключевых_факторов_в_отзывах.py
+2025-04-28 23:03:21,730 - VisualizationDataCollector - INFO - Script viz_2_Частота_упоминаний_ключевых_факторов_в_отзывах.py executed successfully
+2025-04-28 23:03:21,730 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_3_Влияние_упоминаний_факторов_на_средний_рейтинг_(корреляция).py
+2025-04-28 23:03:23,272 - VisualizationDataCollector - INFO - Script viz_3_Влияние_упоминаний_факторов_на_средний_рейтинг_(корреляция).py executed successfully
+2025-04-28 23:03:23,272 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_4_Процентное_соотношение_положительных_и_отрицательных_упоминаний_по_ключевым_темам.py
+2025-04-28 23:03:24,571 - VisualizationDataCollector - INFO - Script viz_4_Процентное_соотношение_положительных_и_отрицательных_упоминаний_по_ключевым_темам.py executed successfully
+2025-04-28 23:03:24,571 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_5_Частота_упоминаний_проблем_и_их_влияние_на_рейтинг.py
+2025-04-28 23:03:25,585 - VisualizationDataCollector - ERROR - Script viz_5_Частота_упоминаний_проблем_и_их_влияние_на_рейтинг.py failed with return code 1
+2025-04-28 23:03:25,586 - VisualizationDataCollector - ERROR - Error output: None
+2025-04-28 23:03:25,587 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_6_Взаимосвязь_состояния_упаковки_и_рейтинга.py
+2025-04-28 23:03:29,174 - VisualizationDataCollector - INFO - Script viz_6_Взаимосвязь_состояния_упаковки_и_рейтинга.py executed successfully
+2025-04-28 23:03:29,175 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_7_Временной_тренд_упоминаний_проблем_(если_доступны_даты).py
+2025-04-28 23:03:32,003 - VisualizationDataCollector - INFO - Script viz_7_Временной_тренд_упоминаний_проблем_(если_доступны_даты).py executed successfully
+2025-04-28 23:03:32,004 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_8_Взаимосвязь_тем_и_рейтингов_(тепловая_карта).py
+2025-04-28 23:03:33,244 - VisualizationDataCollector - ERROR - Script viz_8_Взаимосвязь_тем_и_рейтингов_(тепловая_карта).py failed with return code 1
+2025-04-28 23:03:33,245 - VisualizationDataCollector - ERROR - Error output: None
+2025-04-28 23:03:33,245 - VisualizationDataCollector - INFO - Running script: analytics_output\visualizations\code\viz_9_Анализ_влияния_времени_работы_аккумулятора_на_рейтинг.py
+2025-04-28 23:03:35,756 - VisualizationDataCollector - INFO - Script viz_9_Анализ_влияния_времени_работы_аккумулятора_на_рейтинг.py executed successfully
+2025-04-28 23:03:35,760 - VisualizationDataCollector - INFO - Normalizing 8 HTML files to use Plotly CDN
+2025-04-28 23:03:36,104 - VisualizationDataCollector - INFO - After running scripts, found 10 image files and 8 HTML files
+2025-04-28 23:03:36,114 - VisualizationDataCollector - INFO - Found HTML file for visualization Visualization 10: Частота упоминаний достоинств (положительных аспектов): analytics_output\visualizations\viz_Частота упоминаний достоинств (положительных аспектов).html
+2025-04-28 23:03:36,115 - VisualizationDataCollector - INFO - Found image file for visualization Visualization 10: Частота упоминаний достоинств (положительных аспектов): analytics_output\visualizations\viz_Частота упоминаний достоинств (положительных аспектов).png
+2025-04-28 23:03:36,127 - VisualizationDataCollector - INFO - Found HTML file for visualization Visualization 1: Распределение рейтингов отзывов: analytics_output\visualizations\viz_Распределение рейтингов отзывов.html
+2025-04-28 23:03:36,136 - VisualizationDataCollector - INFO - Found HTML file for visualization Отчет по визуализации: Частота упоминаний ключевых факторов в отзывах: analytics_output\visualizations\viz_Частота упоминаний ключевых факторов в отзывах.html
+2025-04-28 23:03:36,137 - VisualizationDataCollector - INFO - Found image file for visualization Отчет по визуализации: Частота упоминаний ключевых факторов в отзывах: analytics_output\visualizations\viz_Частота упоминаний ключевых факторов в отзывах.png
+2025-04-28 23:03:36,147 - VisualizationDataCollector - INFO - Found HTML file for visualization Visualization 3: Влияние упоминаний факторов на средний рейтинг (корреляция): analytics_output\visualizations\viz_Влияние упоминаний факторов на средний рейтинг (корреляция).html
+2025-04-28 23:03:36,148 - VisualizationDataCollector - INFO - Found image file for visualization Visualization 3: Влияние упоминаний факторов на средний рейтинг (корреляция): analytics_output\visualizations\viz_Влияние упоминаний факторов на средний рейтинг (корреляция).png
+2025-04-28 23:03:36,158 - VisualizationDataCollector - INFO - Found HTML file for visualization Visualization 4: Процентное соотношение положительных и отрицательных упоминаний по ключевым темам: analytics_output\visualizations\viz_Процентное соотношение положительных и отрицательных упоминаний по ключевым темам.html
+2025-04-28 23:03:36,159 - VisualizationDataCollector - INFO - Found image file for visualization Visualization 4: Процентное соотношение положительных и отрицательных упоминаний по ключевым темам: analytics_output\visualizations\viz_Процентное соотношение положительных и отрицательных упоминаний по ключевым темам.png
+2025-04-28 23:03:36,169 - VisualizationDataCollector - WARNING - HTML file for visualization Visualization 5: Частота упоминаний проблем и их влияние на рейтинг not found. Searched for patterns: viz_5_, viz_Визуализация 5, viz_Частота упоминаний проблем и их влияние на рейтинг, viz_Частота_упоминаний_проблем_и_их_влияние_на_рейтинг
+2025-04-28 23:03:36,169 - VisualizationDataCollector - WARNING - No files found for visualization Visualization 5: Частота упоминаний проблем и их влияние на рейтинг
+2025-04-28 23:03:36,179 - VisualizationDataCollector - INFO - Found HTML file for visualization Visualization 6: Взаимосвязь состояния упаковки и рейтинга: analytics_output\visualizations\viz_Взаимосвязь состояния упаковки и рейтинга.html
+2025-04-28 23:03:36,180 - VisualizationDataCollector - INFO - Found image file for visualization Visualization 6: Взаимосвязь состояния упаковки и рейтинга: analytics_output\visualizations\viz_Взаимосвязь состояния упаковки и рейтинга.png
+2025-04-28 23:03:36,189 - VisualizationDataCollector - INFO - Found HTML file for visualization Visualization 7: Временной тренд упоминаний проблем (если доступны даты): analytics_output\visualizations\viz_Временной тренд упоминаний проблем (если доступны даты).html
+2025-04-28 23:03:36,190 - VisualizationDataCollector - INFO - Found image file for visualization Visualization 7: Временной тренд упоминаний проблем (если доступны даты): analytics_output\visualizations\viz_Временной тренд упоминаний проблем (если доступны даты).png
+2025-04-28 23:03:36,199 - VisualizationDataCollector - WARNING - HTML file for visualization Visualization 8: Взаимосвязь тем и рейтингов (тепловая карта) not found. Searched for patterns: viz_8_, viz_Визуализация 8, viz_Взаимосвязь тем и рейтингов (тепловая карта), viz_Взаимосвязь_тем_и_рейтингов_(тепловая_карта)
+2025-04-28 23:03:36,200 - VisualizationDataCollector - WARNING - No files found for visualization Visualization 8: Взаимосвязь тем и рейтингов (тепловая карта)
+2025-04-28 23:03:36,209 - VisualizationDataCollector - INFO - Found HTML file for visualization Отчет по визуализации: Анализ влияния времени работы аккумулятора на рейтинг: analytics_output\visualizations\viz_Анализ влияния времени работы аккумулятора на рейтинг.html
+2025-04-28 23:03:36,210 - VisualizationDataCollector - INFO - Found image file for visualization Отчет по визуализации: Анализ влияния времени работы аккумулятора на рейтинг: analytics_output\visualizations\viz_Анализ влияния времени работы аккумулятора на рейтинг.png
+2025-04-28 23:03:36,210 - VisualizationDataCollector - INFO - Successfully collected information about 8 visualizations
+2025-04-28 23:03:36,288 - VisualizationDataCollector - INFO - Report generated successfully: analytics_output\visualization_report.html

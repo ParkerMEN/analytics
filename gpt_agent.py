@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Union, Optional, Tuple
 from datetime import datetime
 import json
 import copy
@@ -7,6 +7,9 @@ import os
 import logging
 import re
 import glob
+import httpx  # Для асинхронных HTTP-запросов
+import asyncio
+import time
 
 # Попытка импортировать библиотеку tiktoken для точного подсчета токенов
 try:
@@ -185,6 +188,9 @@ class GPTAgent:
         Включает улучшенное балансирование групп по размеру и объединение маленьких групп.
         Гарантирует, что каждый отзыв анализируется только один раз.
         """
+        # Импортируем асинхронный анализатор
+        from thematic_group_analyzer import ThematicGroupAnalyzer
+        
         # Базовая информация о всех отзывах (всегда включается в каждый запрос)
         base_info = {
             "total_reviews": data["total_reviews"],
@@ -201,10 +207,11 @@ class GPTAgent:
         # Извлекаем топ-темы из данных
         top_themes = {}
         if "top_topics" in data:
-            # Берем самые популярные темы
-            top_themes = dict(sorted(data["top_topics"].items(), 
-                                    key=lambda item: item[1], 
-                                    reverse=True)[:30])
+            # Берем все темы с минимальной частотой упоминания (например, 3+)
+            top_themes = {theme: count for theme, count in data["top_topics"].items() 
+                         if count >= 3}  # фильтруем темы, упомянутые менее 3 раз
+            # Сортируем темы по частоте
+            top_themes = dict(sorted(top_themes.items(), key=lambda item: item[1], reverse=True))
         
         # Создаем тематические группы
         thematic_groups = []
@@ -223,7 +230,9 @@ class GPTAgent:
                     continue
                 
                 # Проверяем, соответствует ли отзыв теме
-                if theme.lower() in review_text.lower():
+                theme_root = theme.lower().rstrip('аеёиоуыэюяь')  # базовая основа слова без окончаний
+                if (theme.lower() in review_text.lower() or 
+                    (len(theme_root) > 3 and theme_root in review_text.lower())):
                     theme_group["reviews"].append(review_text)
                     used_review_indices.add(i)
                     
@@ -274,6 +283,11 @@ class GPTAgent:
                     
                     if token_count < max_tokens:
                         thematic_groups.append((rating_data, token_count, len(reviews[:100])))
+                        # Отмечаем отзывы как использованные
+                        for review in reviews[:100]:
+                            idx = all_reviews.index(review) if review in all_reviews else -1
+                            if idx >= 0:
+                                used_review_indices.add(idx)
         
         # 3. Сортируем группы по размеру токенов для лучшего управления
         thematic_groups.sort(key=lambda x: x[1])
@@ -286,7 +300,7 @@ class GPTAgent:
         
         for group_data, token_count, reviews_count in thematic_groups:
             # Если группа слишком мала, пытаемся объединить с другими
-            if token_count < max_tokens * 0.1:  # Маленькие группы < 10% от максимума
+            if token_count < max_tokens * 0.05:  # Маленькие группы < 5% от максимума
                 self.logger.info(f"Группа '{group_data['analysis_focus']}' слишком мала ({token_count} токенов), буфферизуем для объединения")
                 
                 # Если текущей группы нет, создаем новую
@@ -296,9 +310,31 @@ class GPTAgent:
                     current_reviews_count = reviews_count
                 else:
                     # Объединяем фокусы анализа
-                    themes = [current_group["analysis_focus"].replace("Тематическая группа: ", ""),
-                              group_data["analysis_focus"].replace("Тематическая группа: ", "")]
-                    new_focus = f"Тематические группы: {', '.join(themes)}"
+                    def clean_group_name(name):
+                        # Удаляем все существующие префиксы "Тематические группы: "
+                        name = re.sub(r'^Тематические группы:\s*', '', name)
+                        # Если это группа по рейтингу, извлекаем только рейтинг
+                        rating_match = re.search(r'Группа отзывов с рейтингом (\d+) звезд', name)
+                        if rating_match:
+                            name = f"рейтинг {rating_match.group(1)}"
+                        return name
+                    
+                    # Очищаем названия групп от префиксов
+                    current_name = clean_group_name(current_group["analysis_focus"])
+                    new_name = clean_group_name(group_data["analysis_focus"])
+                    
+                    # Разбиваем на отдельные темы
+                    current_themes = [theme.strip() for theme in current_name.split(',')]
+                    new_themes = [theme.strip() for theme in new_name.split(',')]
+                    
+                    # Объединяем все уникальные темы (удаляем дубликаты)
+                    all_themes = []
+                    for theme in current_themes + new_themes:
+                        if theme and theme not in all_themes:
+                            all_themes.append(theme)
+                    
+                    # Формируем новый фокус с единственным префиксом
+                    new_focus = f"Тематические группы: {', '.join(all_themes)}"
                     
                     # Объединяем отзывы
                     combined_reviews = []
@@ -348,7 +384,8 @@ class GPTAgent:
         distributed_reviews_count = sum(
             len(group.get("review_texts_for_theme", [])) + 
             len(group.get("review_texts_for_rating", [])) + 
-            len(group.get("review_texts_for_themes", []))
+            len(group.get("review_texts_for_themes", [])) +
+            len(group.get("review_texts", []))
             for group in final_groups
         )
         
@@ -356,32 +393,34 @@ class GPTAgent:
         if distributed_reviews_count < len(all_reviews):
             self.logger.info(f"Распределено {distributed_reviews_count} из {len(all_reviews)} отзывов. Создаем дополнительную группу для оставшихся.")
             
+            remaining_indices = set(range(len(all_reviews))) - used_review_indices
             remaining_group = base_info.copy()
             remaining_group["analysis_focus"] = "Анализ оставшихся отзывов"
-            remaining_group["review_texts"] = [review for i, review in enumerate(all_reviews) 
-                                              if i not in used_review_indices][:100]  # Ограничиваем для контроля размера
+            remaining_group["review_texts"] = [all_reviews[i] for i in remaining_indices][:100]  # Ограничиваем для контроля размера
             final_groups.append(remaining_group)
         
-        # 6. Анализируем каждую группу отдельно
+        # 6. Используем асинхронный анализатор групп для параллельной обработки
         self.logger.info(f"Создано {len(final_groups)} тематических групп для анализа")
-        results = []
-        total_analyzed_reviews = 0
         
-        for i, group_data in enumerate(final_groups):
-            self.logger.info(f"Анализ группы {i+1} из {len(final_groups)}: {group_data['analysis_focus']}")
-            
-            # Подсчитываем отзывы в этой группе
-            group_reviews_count = (
-                len(group_data.get("review_texts_for_theme", [])) + 
-                len(group_data.get("review_texts_for_rating", [])) + 
-                len(group_data.get("review_texts_for_themes", [])) +
-                len(group_data.get("review_texts", []))
-            )
-            total_analyzed_reviews += group_reviews_count
-            
-            # Анализируем группу
-            group_result = self._analyze_data_with_gpt(group_data)
-            results.append(group_result)
+        # Создаем анализатор тематических групп
+        analyzer = ThematicGroupAnalyzer(api_key=self.api_key)
+        
+        # Определяем максимальное количество параллельных запросов в зависимости от числа групп
+        max_parallel = min(15, len(final_groups))  # Максимум 15 или число групп, если их меньше 15
+
+        # Запускаем асинхронный анализ с помощью event loop
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # Если цикл событий не существует, создаем новый
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        # Запускаем асинхронный анализ всех групп с адаптивным параллелизмом
+        self.logger.info(f"Запуск асинхронного анализа {len(final_groups)} групп с параллелизмом {max_parallel}")
+        results, total_analyzed_reviews = loop.run_until_complete(
+            analyzer.analyze_groups(final_groups, max_concurrent=max_parallel)
+        )
         
         # 7. Объединяем результаты анализа
         final_result = self._synthesize_segmented_results(results)

@@ -2,6 +2,7 @@
 from gpt_agent import GPTAgent
 from data_processing_agent import DataProcessingAgent
 from visualization_agent import VisualizationAgent
+from generate_visualization_report import generate_report
 import time
 import sys
 import os
@@ -33,6 +34,14 @@ def main():
     os.makedirs("analysis_results", exist_ok=True)
     os.makedirs("logs", exist_ok=True)
     os.makedirs("analytics_output/visualizations", exist_ok=True)
+
+    # Создаем необходимые директории и индексный файл
+    output_dir = os.path.join("analytics_output", "visualizations")
+    os.makedirs(output_dir, exist_ok=True)
+    index_file = os.path.join(output_dir, "index.md")
+    if not os.path.exists(index_file):
+        with open(index_file, "w", encoding="utf-8") as f:
+            f.write("# Визуализации анализа отзывов\n\n")
 
     # Загрузка и обработка данных
     logger.info("Загрузка отзывов из batches...")
@@ -92,39 +101,46 @@ def main():
         import traceback
         logger.error(traceback.format_exc())
 
-    # Генерация визуализаций на основе анализа
-    logger.info("Генерация визуализаций на основе анализа...")
-    viz_agent = VisualizationAgent(api_key=api_key)
+    # Генерация визуализаций на основе анализа и рекомендаций
+    logger.info("Генерация визуализаций на основе анализа и рекомендаций...")
     try:
-        generated_files = viz_agent.generate_visualizations(key_metadata, hidden_patterns)
-        logger.info(f"Создано {len(generated_files)} файлов с кодом визуализаций")
-        
-        # Log created files
-        for file_path in generated_files:
-            logger.info(f"Создан файл визуализации: {file_path}")
-        
-        logger.info(f"Все результаты визуализации сохранены в директории: {viz_agent.output_dir}")
-    except Exception as e:
-        logger.error(f"Произошла ошибка при генерации визуализаций: {str(e)}")
-
-    # Генерация визуализаций
-    logger.info("Запуск генерации визуализаций...")
-    try:
+        # Загружаем рекомендации по визуализации, если они есть
         recommendations = None
         if os.path.exists("visualization_recommendations.txt"):
             with open("visualization_recommendations.txt", "r", encoding="utf-8") as f:
                 recommendations = f.read()
                 logger.info("Загружены рекомендации по визуализации")
         
-        generated_files = viz_agent.generate_visualizations(key_metadata, recommendations)
+        # Приоритет отдаем рекомендациям, если они есть, иначе используем hidden_patterns
+        generated_files = viz_agent.generate_visualizations(key_metadata, recommendations or hidden_patterns)
         logger.info(f"Создано {len(generated_files)} файлов с кодом визуализаций")
         
         # Выводим список созданных файлов
         for file_path in generated_files:
             logger.info(f"Создан файл: {file_path}")
-    
+        
+        logger.info(f"Все результаты визуализации сохранены в директории: {viz_agent.output_dir}")
     except Exception as e:
         logger.error(f"Произошла ошибка при генерации визуализаций: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+    # Generate final visualization report
+    logger.info("Generating final visualization report...")
+    try:
+        # Import the report generator
+        from generate_visualization_report import generate_report
+        
+        # Generate report
+        report_path = generate_report()
+        
+        if report_path:
+            logger.info("Final report created successfully.")
+            logger.info(f"Report path: {report_path}")
+        else:
+            logger.error("Failed to create report.")
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
 
