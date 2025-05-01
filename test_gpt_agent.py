@@ -2,7 +2,7 @@
 from gpt_agent import GPTAgent
 from data_processing_agent import DataProcessingAgent
 from visualization_agent import VisualizationAgent
-from generate_visualization_report import generate_report
+from visualization_storage import VisualizationStorage
 import time
 import sys
 import os
@@ -120,27 +120,24 @@ def main():
             logger.info(f"Создан файл: {file_path}")
         
         logger.info(f"Все результаты визуализации сохранены в директории: {viz_agent.output_dir}")
-    except Exception as e:
-        logger.error(f"Произошла ошибка при генерации визуализаций: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
 
-    # Generate final visualization report
-    logger.info("Generating final visualization report...")
-    try:
-        # Import the report generator
-        from generate_visualization_report import generate_report
+        # Вместо генерации отчета выводим информацию о сохраненных визуализациях
+        logger.info("Проверка сохраненных визуализаций...")
         
-        # Generate report
-        report_path = generate_report()
+        # Работа с хранилищем визуализаций
+        viz_storage = VisualizationStorage()
+        all_visualizations = viz_storage.get_all_visualizations()
+        interactive_viz = viz_storage.get_interactive_visualizations()
         
-        if report_path:
-            logger.info("Final report created successfully.")
-            logger.info(f"Report path: {report_path}")
-        else:
-            logger.error("Failed to create report.")
+        logger.info(f"Всего визуализаций в хранилище: {len(all_visualizations)}")
+        logger.info(f"Интерактивных визуализаций: {len(interactive_viz)}")
+        
+        # Выводим информацию о хранилище
+        logger.info(f"Все метаданные визуализаций сохранены в: {viz_storage.storage_file}")
+        logger.info("Завершение генерации визуализаций.")
+        
     except Exception as e:
-        logger.error(f"Error generating report: {str(e)}")
+        logger.error(f"Ошибка при работе с визуализациями: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
 

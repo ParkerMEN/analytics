@@ -9,6 +9,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.feature_extraction.text import TfidfVectorizer
+from visualization_storage import VisualizationStorage
 import numpy as np
 
 class VisualizationAgent:
@@ -91,6 +92,9 @@ class VisualizationAgent:
         # Обрабатываем результаты
         generated_files = []
         
+        # Инициализируем хранилище визуализаций
+        storage = VisualizationStorage()
+        
         for task, idx, code, report in results:
             try:
                 # Сохраняем код в файл
@@ -104,6 +108,32 @@ class VisualizationAgent:
                 report_path = os.path.join(self.output_dir, "reports", report_filename)
                 with open(report_path, "w", encoding="utf-8") as f:
                     f.write(report)
+                
+                # Путь для HTML файла визуализации
+                html_path = os.path.join(self.output_dir, f"viz_{self._safe_filename(task.get('title', 'visualization'))}.html")
+                # Путь для PNG изображения визуализации
+                image_path = os.path.join(self.output_dir, f"viz_{self._safe_filename(task.get('title', 'visualization'))}.png")
+                
+                # Создаем метаданные визуализации
+                visualization_metadata = {
+                    'id': f"viz_{idx}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                    'title': task.get('title', f'Визуализация {idx}'),
+                    'type': task.get('type', 'Неизвестный тип'),
+                    'description': task.get('description', ''),
+                    'insights': task.get('insights', ''),
+                    'code_path': code_path,
+                    'report_path': report_path,
+                    'html_path': html_path,
+                    'image_path': image_path,
+                    'is_interactive': True,
+                    'is_executable': True,
+                    'created_at': datetime.now().isoformat(),
+                    'data': task.get('data', ''),
+                    'themes': self._extract_themes_from_task(task)
+                }
+                
+                # Сохраняем метаданные
+                storage.add_visualization(visualization_metadata)
                 
                 generated_files.append(code_path)
                 self.logger.info(f"Создан файл визуализации: {code_path}")
@@ -800,3 +830,19 @@ print(f'Создан резервный график: {task['title']}')
         
         with open(os.path.join(self.output_dir, "index.md"), "w", encoding="utf-8") as f:
             f.write(index_content)
+
+    def _extract_themes_from_task(self, task: Dict[str, str]) -> List[str]:
+        """Извлекает темы из задачи визуализации."""
+        themes = []
+        
+        # Пытаемся извлечь темы из описания
+        if task.get('description'):
+            description = task.get('description')
+            # Ищем упоминания тем
+            theme_matches = re.findall(r'(?:тем[аы]|темати[ка]|категори[яи]):?\s*[«"]?([^«".,]+)[»"]?', 
+                                       description, re.IGNORECASE)
+            if theme_matches:
+                for match in theme_matches:
+                    themes.extend([t.strip() for t in match.split(',') if t.strip()])
+        
+        return themes
