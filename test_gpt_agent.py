@@ -3,6 +3,7 @@ from gpt_agent import GPTAgent
 from data_processing_agent import DataProcessingAgent
 from visualization_agent import VisualizationAgent
 from visualization_storage import VisualizationStorage
+from visualization_execution_agent import VisualizationExecutionAgent
 import time
 import sys
 import os
@@ -120,6 +121,19 @@ def main():
             logger.info(f"Создан файл: {file_path}")
         
         logger.info(f"Все результаты визуализации сохранены в директории: {viz_agent.output_dir}")
+
+        # Добавляем выполнение скриптов визуализации
+        logger.info("Запуск исполнения скриптов визуализации...")
+        try:
+            execution_agent = VisualizationExecutionAgent()
+            execution_results = execution_agent.process()
+            logger.info(f"Выполнение визуализаций завершено: "
+                        f"{execution_results['successful_executions']} успешных, "
+                        f"{execution_results['failed_executions']} неудачных.")
+        except Exception as e:
+            logger.error(f"Ошибка при выполнении скриптов визуализации: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
         # Вместо генерации отчета выводим информацию о сохраненных визуализациях
         logger.info("Проверка сохраненных визуализаций...")
