@@ -11,6 +11,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize Charts
     initCharts();
+    
+    // Проверка и сброс возможных проблем с модальными окнами
+    function resetModalState() {
+        // Проверка на наличие "застрявших" backdrop элементов
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        if (backdrops.length > 0) {
+            console.warn('Обнаружены оставшиеся backdrop элементы:', backdrops.length);
+            backdrops.forEach(backdrop => backdrop.remove());
+        }
+        
+        // Сброс стилей body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.body.removeAttribute('data-bs-overflow');
+        document.body.removeAttribute('data-bs-padding-right');
+        document.body.removeAttribute('aria-hidden');
+    }
+
+    // Вызываем сброс состояния при загрузке страницы
+    resetModalState();
 });
 
 // Navbar becomes different on scroll
@@ -216,3 +237,26 @@ function initCharts() {
         Plotly.newPlot(barChart, [trace3a, trace3b], layout3, {responsive: true});
     }
 }
+
+// Добавьте в конец файла c:\projects\marketplace-analytics\js\scripts.js:
+
+// Инициализация визуализаций
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем наличие контейнера для визуализаций
+    const vizGrid = document.getElementById('visualizations-grid');
+    
+    // Только если элемент существует и пуст
+    if (vizGrid && vizGrid.children.length === 0) {
+        console.log('Инициализация визуализаций...');
+        
+        // Если доступен менеджер визуализаций, используем его
+        if (window.visualizationManager && typeof window.visualizationManager.init === 'function') {
+            window.visualizationManager.init();
+        }
+        
+        // Инициализируем кнопку полноэкранного режима
+        if (typeof window.setupFullscreenButton === 'function') {
+            window.setupFullscreenButton();
+        }
+    }
+});

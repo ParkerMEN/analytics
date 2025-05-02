@@ -274,6 +274,23 @@
                 state.filter = { search: '', category: 'all', type: 'all' };
                 state.currentPage = 1;
                 filterAndDisplayVisualizations(elements);
+                
+                // Даем время для обновления DOM, затем инициализируем миниатюры
+                setTimeout(() => {
+                    // Сначала скрываем все лоадеры для корректного отображения
+                    document.querySelectorAll('.visualization-loader').forEach(loader => {
+                        loader.style.display = 'none';
+                    });
+                    
+                    // Последовательно пробуем разные способы инициализации миниатюр
+                    if (typeof window.initStaticThumbnails === 'function') {
+                        console.log('Переинициализация статических миниатюр после сброса фильтров');
+                        window.initStaticThumbnails();
+                    } else if (window.vizThumbnails && window.vizThumbnails.initThumbnails) {
+                        console.log('Переинициализация миниатюр через vizThumbnails после сброса фильтров');
+                        window.vizThumbnails.initThumbnails();
+                    }
+                }, 500); // Таймаут для гарантии завершения обновления DOM
             });
         }
     }
@@ -415,7 +432,7 @@
         
         if (!content || !loader || !fallback) return;
         
-        // Создание миниатюры для предпросмотра
+        // Создаем контейнер для миниатюры, но не добавляем обработчиков
         const thumbnailContainer = document.createElement('div');
         thumbnailContainer.className = 'viz-thumbnail-container';
         thumbnailContainer.style.width = '100%';
@@ -423,124 +440,23 @@
         thumbnailContainer.style.position = 'relative';
         content.appendChild(thumbnailContainer);
         
-        // Если доступна функция создания миниатюры, используем её
-        if (window.vizThumbnails && window.vizThumbnails.createThumbnail) {
-            window.vizThumbnails.createThumbnail(viz.id, viz.path, thumbnailContainer);
-            loader.style.display = 'none';
-        }
-        
-        // Добавляем кнопку полноэкранного режима
-        const fullscreenBtn = document.createElement('button');
-        fullscreenBtn.className = config.classes.fullscreenBtn;
-        fullscreenBtn.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
-        fullscreenBtn.title = 'Открыть визуализацию';
-        content.appendChild(fullscreenBtn);
-        
-        // Делаем всю карточку кликабельной для открытия визуализации
-        card.style.cursor = 'pointer';
-        card.addEventListener('click', function(event) {
-            // Предотвращаем открытие при клике на кнопки и другие интерактивные элементы
-            if (event.target.closest('.retry-btn')) return;
-            
-            // Открываем модальное окно с визуализацией
-            openVisualizationModal(viz);
-        });
-        
-        // Функция открытия модального окна с визуализацией
-        function openVisualizationModal(viz) {
-            const modal = document.getElementById('vizModal') || createVizModal();
-            if (!modal) return;
-            
-            // Устанавливаем заголовок модального окна
-            const modalTitle = modal.querySelector('.modal-title');
-            if (modalTitle) modalTitle.textContent = viz.title;
-            
-            // Очищаем и заполняем контейнер визуализации
-            const modalContainer = document.getElementById('viz-container');
-            if (modalContainer) {
-                modalContainer.innerHTML = '';
-                
-                // Добавляем лоадер
-                const modalLoader = document.createElement('div');
-                modalLoader.className = config.classes.loader;
-                modalLoader.innerHTML = `<div class="${config.classes.spinner}"></div>`;
-                modalContainer.appendChild(modalLoader);
-                
-                // Создаем iframe для загрузки визуализации
-                const modalIframe = document.createElement('iframe');
-                modalIframe.className = 'viz-modal-iframe';
-                modalIframe.style.width = '100%';
-                modalIframe.style.height = '100%';
-                modalIframe.style.border = 'none';
-                modalIframe.style.opacity = '0';
-                modalIframe.style.transition = 'opacity 0.3s';
-                modalIframe.src = config.visualizationsPath + viz.path;
-                modalContainer.appendChild(modalIframe);
-                
-                // Обработчик загрузки iframe
-                modalIframe.onload = function() {
-                    modalLoader.style.display = 'none';
-                    modalIframe.style.opacity = '1';
-                    
-                    // Отправляем сообщение для адаптации размеров
-                    try {
-                        const message = {
-                            type: 'resize-plotly',
-                            width: modalContainer.clientWidth,
-                            height: modalContainer.clientHeight
-                        };
-                        modalIframe.contentWindow.postMessage(message, '*');
-                    } catch (e) {
-                        console.error('Ошибка при отправке сообщения в iframe:', e);
-                    }
-                };
-            }
-            
-            // Показываем модальное окно
-            if (window.bootstrap && window.bootstrap.Modal) {
-                const bsModal = new window.bootstrap.Modal(modal);
-                bsModal.show();
-            } else {
-                modal.style.display = 'block';
+        // Используем новый менеджер миниатюр, если доступен
+        if (window.thumbnailManager) {
+            // Делегируем создание миниатюры менеджеру
+            window.thumbnailManager.createThumbnail(viz.id);
+            if (loader) loader.style.display = 'none';
+        } else {
+            // Запасной вариант со старой логикой создания миниатюр
+            if (window.vizThumbnails && window.vizThumbnails.createThumbnail) {
+                window.vizThumbnails.createThumbnail(viz.id, viz.path, thumbnailContainer);
+                if (loader) loader.style.display = 'none';
             }
         }
         
-        // Функция создания модального окна для визуализации
-        function createVizModal() {
-            // Проверяем, существует ли модальное окно
-            let modal = document.getElementById('vizModal');
-            if (modal) return modal;
-            
-            // Создаем новое модальное окно
-            modal = document.createElement('div');
-            modal.className = 'modal fade';
-            modal.id = 'vizModal';
-            modal.setAttribute('tabindex', '-1');
-            modal.setAttribute('aria-hidden', 'true');
-            
-            // Создаем структуру модального окна
-            modal.innerHTML = `
-                <div class="modal-dialog modal-dialog-centered modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Визуализация</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body p-0">
-                            <div id="viz-container" style="height: 500px; position: relative;"></div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Добавляем модальное окно в документ
-            document.body.appendChild(modal);
-            
-            return modal;
-        }
+        // Автоматически скрыть загрузчик через 5 секунд
+        setTimeout(() => {
+            if (loader) loader.style.display = 'none';
+        }, 5000);
     }
     
     // ========================
@@ -661,11 +577,12 @@
         };
     }
 
-    // Добавить в visualizations.js
     window.addEventListener('resize', debounce(() => {
         document.querySelectorAll('.visualization-iframe').forEach(iframe => {
             // Повторно запустить масштабирование для всех iframe при ресайзе
-            adjustIframeScale(iframe);
+            if (window.iframeChartHandler && window.iframeChartHandler.resizeIframeChart) {
+                window.iframeChartHandler.resizeIframeChart(iframe.id);
+            }
         });
     }, 250));
 
@@ -718,5 +635,40 @@
                 filterAndDisplayVisualizations(elements);
             }
         }
+    };
+    
+    // Замените обработчик ошибок загрузки изображения (примерно строка 110)
+    img.onerror = function() {
+        console.error(`Не удалось загрузить миниатюру: ${pngPath}`);
+        img.style.display = 'none';
+        
+        // Создаем заглушку с информативным сообщением
+        const errorContainer = document.createElement('div');
+        errorContainer.style.padding = '10px';
+        errorContainer.style.textAlign = 'center';
+        
+        const errorIcon = document.createElement('div');
+        errorIcon.innerHTML = '⚠️';
+        errorIcon.style.fontSize = '24px';
+        errorContainer.appendChild(errorIcon);
+        
+        const errorText = document.createElement('div');
+        errorText.textContent = 'Не удалось загрузить визуализацию';
+        errorText.style.color = '#dc3545';
+        errorText.style.fontSize = '12px';
+        errorText.style.marginTop = '5px';
+        errorContainer.appendChild(errorText);
+        
+        // Кнопка повторной загрузки
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = 'Повторить';
+        retryBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+        retryBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            createStaticThumbnail(card, vizData);
+        });
+        errorContainer.appendChild(retryBtn);
+        
+        thumbnail.appendChild(errorContainer);
     };
 })();
