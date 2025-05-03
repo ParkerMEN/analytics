@@ -312,35 +312,7 @@ function initVisualizationSystem() {
                     .then(() => this._loadVisualizationList())
                     .catch(error => {
                         console.error('Ошибка при загрузке визуализаций:', error);
-                        
-                        // Загрузить тестовые данные, если основной способ не работает
-                        console.log('Загрузка тестовых данных визуализаций...');
-                        
-                        // Упрощенная версия для демонстрации
-                        this._visualizations = [
-                            {
-                                id: 'viz_chastota',
-                                title: 'Частота упоминаний достоинств и их связь с рейтингом',
-                                path: 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
-                                type: 'bar',
-                                category: 'analysis'
-                            },
-                            {
-                                id: 'viz_raspredelenie',
-                                title: 'Распределение рейтингов отзывов',
-                                path: 'viz_Raspredelenie_reytingov_otzyvov.html',
-                                type: 'pie',
-                                category: 'analysis'
-                            },
-                            {
-                                id: 'viz_vzaimosvyaz',
-                                title: 'Взаимосвязь комплектации и рейтинга',
-                                path: 'viz_Vzaimosvyaz_komplektatsii.html',
-                                type: 'scatter',
-                                category: 'analysis'
-                            }
-                        ];
-                        
+                   
                         console.log(`Загружено ${this._visualizations.length} визуализаций`);
                         
                         // Заполнить фильтры и отобразить визуализации
@@ -466,6 +438,44 @@ function initVisualizationSystem() {
         window.visualizationManager.init();
     }
 }
+
+// Добавляем функцию для обновления заголовков карточек, когда страница полностью загружена
+
+// Функция для обновления заголовков карточек
+function updateCardTitles() {
+    console.log('Обновление заголовков карточек...');
+    
+    // Проверяем наличие кэша заголовков
+    if (!window._visualizationTitlesCache) {
+        console.log('Кэш заголовков не найден');
+        return;
+    }
+    
+    // Находим все карточки и обновляем их заголовки
+    const cards = document.querySelectorAll('.visualization-card');
+    let updatedCount = 0;
+    
+    cards.forEach(card => {
+        const vizId = card.dataset.vizId;
+        if (!vizId) return;
+        
+        const title = window._visualizationTitlesCache.get(vizId);
+        if (title) {
+            const titleElement = card.querySelector('.card-title');
+            if (titleElement) {
+                titleElement.textContent = title;
+                updatedCount++;
+            }
+        }
+    });
+    
+    console.log(`Обновлено ${updatedCount} заголовков карточек`);
+}
+
+// Вызываем обновление заголовков после инициализации системы визуализаций
+window.addEventListener('load', function() {
+    setTimeout(updateCardTitles, 1000);
+});
 
 // Запускаем инициализацию с небольшой задержкой
 setTimeout(initVisualizationSystem, 300);

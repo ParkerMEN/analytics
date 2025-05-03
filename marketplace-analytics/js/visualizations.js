@@ -11,6 +11,62 @@
 (function() {
     'use strict';
     
+    /**
+     * Извлекает оригинальное русское название из HTML файла визуализации
+     * @param {string} filePath - Путь к файлу визуализации
+     * @returns {Promise<string|null>} - Извлеченное название или null в случае ошибки
+     */
+    async function extractRussianTitleFromHTML(filePath) {
+        try {
+            const fullPath = config.visualizationsPath + filePath;
+            const response = await fetch(fullPath);
+            if (!response.ok) {
+                throw new Error(`Не удалось загрузить файл ${filePath}: ${response.status}`);
+            }
+            
+            const html = await response.text();
+            
+            // Поиск заголовка в конфигурации Plotly сначала в объекте с text
+            const plotlyConfigMatch = html.match(/title:\s*{[\s\n]*text:\s*["']([^"']+)["']/i);
+            if (plotlyConfigMatch && plotlyConfigMatch[1]) {
+                return plotlyConfigMatch[1];
+            }
+            
+            // Поиск закодированного юникода заголовка Plotly
+            const plotlyUnicodeMatch = html.match(/title:\s*{[\s\n]*text:\s*["'](\\u[0-9a-fA-F]{4}[\\u0-9a-fA-F]*?)["']/i);
+            if (plotlyUnicodeMatch && plotlyUnicodeMatch[1]) {
+                try {
+                    return JSON.parse('"' + plotlyUnicodeMatch[1] + '"');
+                } catch(e) {
+                    console.warn('Не удалось декодировать юникод заголовка');
+                }
+            }
+            
+            // Прямой заголовок в конфигурации Plotly
+            const plotlyTitleMatch = html.match(/title:\s*["']([^"']+)["']/i);
+            if (plotlyTitleMatch && plotlyTitleMatch[1]) {
+                return plotlyTitleMatch[1];
+            }
+            
+            // Поиск названия в тегах title
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+                return titleMatch[1].trim();
+            }
+            
+            // Поиск в заголовках H1
+            const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+            if (h1Match && h1Match[1]) {
+                return h1Match[1].trim();
+            }
+            
+            return null;
+        } catch (error) {
+            console.error(`Ошибка при извлечении названия из ${filePath}:`, error);
+            return null;
+        }
+    }
+    
     // ========================
     // Конфигурация
     // ========================
@@ -137,9 +193,27 @@
                         category: 'analysis'
                     });
                 });
-                
-                return visualizations;
             }
+            
+            // Обновляем названия визуализаций на русские
+            for (const viz of visualizations) {
+                try {
+                    const russianTitle = await extractRussianTitleFromHTML(viz.path);
+                    if (russianTitle) {
+                        viz.title = russianTitle;
+                    }
+                    
+                    // Записываем в кэш для использования в других местах
+                    if (!window._visualizationTitlesCache) {
+                        window._visualizationTitlesCache = new Map();
+                    }
+                    window._visualizationTitlesCache.set(viz.id, russianTitle || viz.title);
+                } catch (e) {
+                    console.warn(`Не удалось получить русское название для ${viz.id}: ${e.message}`);
+                }
+            }
+            
+            return visualizations;
         } catch (error) {
             console.error('Ошибка при загрузке визуализаций:', error);
             console.log('Используем резервные статические визуализации');

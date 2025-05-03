@@ -395,6 +395,24 @@
                     return iframeWin.Plotly.relayout(plotlyDiv, optimizedLayout);
                 })
                 .then(() => {
+                    // Внутри метода optimizeChart, перед return в блоке then после iframeWin.Plotly.relayout
+                    // Обновляем заголовок модального окна
+                    const fullscreenModal = utils.getElement(config.selectors.fullscreenModal);
+                    if (fullscreenModal) {
+                        const modalTitle = fullscreenModal.querySelector('.modal-title');
+                        if (modalTitle && plotlyDiv._fullLayout && plotlyDiv._fullLayout.title) {
+                            let title = '';
+                            if (typeof plotlyDiv._fullLayout.title === 'object' && plotlyDiv._fullLayout.title.text) {
+                                title = plotlyDiv._fullLayout.title.text;
+                            } else if (typeof plotlyDiv._fullLayout.title === 'string') {
+                                title = plotlyDiv._fullLayout.title;
+                            }
+                            
+                            if (title) {
+                                modalTitle.textContent = title;
+                            }
+                        }
+                    }
                     utils.log('Диаграмма успешно оптимизирована');
                     return true;
                 })

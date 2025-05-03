@@ -283,8 +283,23 @@
             // Находим контейнер контента
             const content = utils.getElement(config.selectors.visualizationContent, card);
             if (!content) {
-                utils.log('Не найден контейнер для контента', 'warn');
+                utils.log(`Не найден контейнер контента для визуализации ${vizData.id}`, 'error');
                 return;
+            }
+            
+            // Получаем заголовок из кэша, если он есть
+            let title = vizData.title;
+            if (window._visualizationTitlesCache && window._visualizationTitlesCache.has(vizData.id)) {
+                title = window._visualizationTitlesCache.get(vizData.id);
+            }
+            
+            // Обновляем заголовок в карточке
+            const cardHeader = card.querySelector('.card-header');
+            if (cardHeader) {
+                const cardTitle = cardHeader.querySelector('.card-title');
+                if (cardTitle && title) {
+                    cardTitle.textContent = title;
+                }
             }
             
             // Скрываем загрузчик, если есть
@@ -318,7 +333,7 @@
             // Создаем IMG элемент для миниатюры
             const img = document.createElement('img');
             img.className = 'viz-thumbnail-canvas';
-            img.alt = vizData.title || `Визуализация ${vizData.id}`;
+            img.alt = title || `Визуализация ${vizData.id}`; // Используем русское название
             img.style.maxWidth = '100%';
             img.style.maxHeight = '100%';
             img.style.objectFit = 'contain';
@@ -539,8 +554,78 @@
             
             // Обработчик загрузки iframe
             iframe.onload = function() {
+                // Существующий код загрузки
                 loader.style.display = 'none';
                 iframe.style.opacity = '1';
+                
+                // Попытка получить русское название из загруженного iframe
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const iframeWin = iframe.contentWindow;
+                    
+                    // Находим название в иерархии приоритетов:
+                    // 1. Из конфигурации Plotly напрямую
+                    let iframeTitle = null;
+                    
+                    // Получаем из Plotly, если доступно
+                    if (iframeWin.Plotly && iframeDoc.querySelector('.plotly-graph-div')) {
+                        const plotlyDiv = iframeDoc.querySelector('.plotly-graph-div');
+                        if (plotlyDiv && plotlyDiv._fullLayout && plotlyDiv._fullLayout.title) {
+                            if (typeof plotlyDiv._fullLayout.title === 'object' && plotlyDiv._fullLayout.title.text) {
+                                iframeTitle = plotlyDiv._fullLayout.title.text;
+                            } else if (typeof plotlyDiv._fullLayout.title === 'string') {
+                                iframeTitle = plotlyDiv._fullLayout.title;
+                            }
+                        }
+                    }
+                    
+                    // Если не нашли в Plotly, ищем в DOM
+                    if (!iframeTitle) {
+                        iframeTitle = iframeDoc.title || 
+                            (iframeDoc.querySelector('h1') ? iframeDoc.querySelector('h1').textContent : null);
+                    }
+                    
+                    // Если все еще нет названия, ищем в исходном коде
+                    if (!iframeTitle) {
+                        const htmlContent = iframeDoc.documentElement.outerHTML;
+                        
+                        // Поиск заголовка в конфигурации Plotly
+                        const plotlyConfigMatch = htmlContent.match(/title:\s*{[\s\n]*text:\s*["']([^"']+)["']/i);
+                        if (plotlyConfigMatch && plotlyConfigMatch[1]) {
+                            iframeTitle = plotlyConfigMatch[1];
+                        } else {
+                            // Поиск закодированного юникода
+                            const plotlyUnicodeMatch = htmlContent.match(/title:\s*{[\s\n]*text:\s*"(\\u[0-9a-fA-F]{4}[\\u0-9a-fA-F]*?)"/);
+                            if (plotlyUnicodeMatch && plotlyUnicodeMatch[1]) {
+                                try {
+                                    iframeTitle = JSON.parse('"' + plotlyUnicodeMatch[1] + '"');
+                                } catch(e) {
+                                    console.warn('Не удалось декодировать юникод заголовка:', e);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Применяем найденный заголовок
+                    if (iframeTitle && modalTitle) {
+                        modalTitle.textContent = iframeTitle;
+                        // Обновляем также данные в визуализации
+                        if (vizData) {
+                            vizData.title = iframeTitle;
+                            
+                            // Обновляем заголовок в карточке, если она существует
+                            const card = document.querySelector(`[data-viz-id="${vizData.id}"]`);
+                            if (card) {
+                                const cardTitle = card.querySelector('.card-title');
+                                if (cardTitle) {
+                                    cardTitle.textContent = iframeTitle;
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Не удалось получить русское название из iframe:', e);
+                }
             };
             
             // Открываем модальное окно
