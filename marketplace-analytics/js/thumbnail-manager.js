@@ -204,13 +204,28 @@
             
             utils.log('Инициализация менеджера миниатюр');
             
-            // Проверка зависимостей
-            const deps = utils.checkDependencies();
-            if (!deps.ready) {
-                utils.log(`Отсутствуют необходимые зависимости: ${deps.missing.join(', ')}`, 'warn');
-                // Регистрируем отложенную инициализацию для пробы после загрузки всех скриптов
-                setTimeout(() => this.init(), 500);
-                return;
+            // Проверка и обеспечение visualizationManager
+            if (!window.visualizationManager) {
+                utils.log('Отсутствует необходимая зависимость: visualizationManager', 'error');
+                
+                // Создаем базовую версию
+                window.visualizationManager = {
+                    getVisualizations: function() {
+                        return [{
+                            id: 'viz_chastota',
+                            title: 'Частота упоминаний достоинств и их связь с рейтингом',
+                            path: 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
+                            type: 'bar',
+                            category: 'analysis'
+                        }];
+                    },
+                    getVisualizationById: function(id) {
+                        const visualizations = this.getVisualizations();
+                        return visualizations.find(v => v.id === id);
+                    }
+                };
+                
+                utils.log('Создана резервная версия visualizationManager');
             }
             
             // Инициализация обработчиков модальных окон
@@ -309,7 +324,7 @@
             img.style.objectFit = 'contain';
             
             // Формируем путь к PNG файлу
-            const pngPath = config.paths.thumbnails + vizData.path.replace(/\.html$/, '.png');
+            const pngPath = getThumbnailPath(vizData);
             img.src = pngPath;
             
             // Обработчик ошибки загрузки изображения
@@ -857,6 +872,28 @@
             });
         }
     };
+    
+    // ========================
+    // Вспомогательная функция для получения пути к миниатюре
+    // ========================
+    function getThumbnailPath(vizData) {
+        if (!vizData || !vizData.path) {
+            console.error('Недостаточно данных для получения пути к миниатюре');
+            return 'img/placeholder.png'; // путь к запасному изображению
+        }
+        
+        // Используем window.visualizationsBasePath, если он определен, или конфигурационный путь
+        const basePath = window.visualizationsBasePath || config.paths.thumbnails;
+        
+        // Удаляем начальные слеши, если они есть
+        const normalizedPath = vizData.path.replace(/^\/+/, '');
+        
+        // Строим полный путь к PNG файлу
+        const pngPath = `${basePath}${normalizedPath.replace(/\.html$/, '.png')}`;
+        
+        console.log(`Путь к миниатюре: ${pngPath}`);
+        return pngPath;
+    }
     
     // ========================
     // Экспорт публичного API

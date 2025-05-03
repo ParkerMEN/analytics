@@ -160,8 +160,116 @@
             });
             
             return results;
+        },
+
+        // Добавить новую функцию для проверки статуса системы
+        checkSystemStatus: function() {
+            console.group('Статус системы визуализации данных');
+            
+            // Проверка наличия и состояния ключевых объектов
+            const components = [
+                { name: 'visualizationManager', obj: window.visualizationManager },
+                { name: 'thumbnailManager', obj: window.thumbnailManager },
+                { name: 'unifiedChartManager', obj: window.unifiedChartManager },
+                { name: 'iframeChartHandler', obj: window.iframeChartHandler },
+                { name: 'plotlyFullscreenAdapter', obj: window.plotlyFullscreenAdapter },
+                { name: 'modalHelpers', obj: window.modalHelpers },
+                { name: 'debugVisualizations', obj: window.debugVisualizations }
+            ];
+            
+            console.log('Компоненты системы:');
+            components.forEach(comp => {
+                const status = comp.obj ? 'доступен' : 'недоступен';
+                const hasInit = comp.obj && typeof comp.obj.init === 'function' ? 'есть метод init' : 'нет метода init';
+                console.log(`- ${comp.name}: ${status}, ${hasInit}`);
+            });
+            
+            // Проверка DOM-элементов
+            console.log('\nКлючевые DOM-элементы:');
+            const elements = [
+                { name: '#visualizations-grid', el: document.querySelector('#visualizations-grid') },
+                { name: '.visualization-card', el: document.querySelectorAll('.visualization-card') },
+                { name: '.viz-thumbnail', el: document.querySelectorAll('.viz-thumbnail') }
+            ];
+            
+            elements.forEach(item => {
+                if (item.name.startsWith('#')) {
+                    console.log(`- ${item.name}: ${item.el ? 'найден' : 'не найден'}`);
+                } else {
+                    console.log(`- ${item.name}: найдено ${item.el ? item.el.length : 0} элементов`);
+                }
+            });
+            
+            // Проверка базового пути
+            console.log('\nНастройки путей:');
+            console.log(`- visualizationsBasePath: ${window.visualizationsBasePath || 'не установлен'}`);
+            
+            console.groupEnd();
+            
+            return {
+                components: components.map(c => ({ name: c.name, available: !!c.obj })),
+                domElements: elements.map(e => ({ 
+                    name: e.name, 
+                    found: e.name.startsWith('#') ? !!e.el : (e.el ? e.el.length > 0 : false)
+                })),
+                paths: {
+                    base: window.visualizationsBasePath || 'не установлен'
+                }
+            };
+        },
+
+        // Добавить новую функцию для автоматического определения и исправления путей к файлам
+        fixVisualizationPaths: function() {
+            console.log('Запуск автоматической коррекции путей к файлам визуализаций...');
+            
+            // Варианты путей для проверки
+            const pathOptions = [
+                '../analytics_output/visualizations/',
+                './analytics_output/visualizations/',
+                '/analytics_output/visualizations/',
+                'c:/projects/analytics_output/visualizations/',
+                '../../analytics_output/visualizations/'
+            ];
+            
+            let workingPath = null;
+            
+            // Проверяем каждый вариант пути
+            for (const path of pathOptions) {
+                try {
+                    const testImage = new Image();
+                    const testComplete = false;
+                    const testPath = path + 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.png';
+                    
+                    testImage.onload = function() {
+                        console.log(`Успешно загружено изображение по пути: ${path}`);
+                        workingPath = path;
+                        window.visualizationsBasePath = path;
+                        console.log(`Установлен рабочий путь: ${path}`);
+                        
+                        // Обновляем миниатюры, если есть thumbnailManager
+                        if (window.thumbnailManager) {
+                            window.thumbnailManager.refreshAll();
+                        }
+                    };
+                    
+                    testImage.src = testPath;
+                } catch (e) {
+                    console.warn(`Ошибка при проверке пути ${path}:`, e);
+                }
+            }
+            
+            return {
+                checkedPaths: pathOptions,
+                workingPath: workingPath || 'Не найден'
+            };
         }
     };
+    
+    // Вызываем эту проверку автоматически через 2 секунды после загрузки
+    setTimeout(() => {
+        console.log('Автоматическая проверка статуса системы...');
+        window.debugVisualizations.checkSystemStatus();
+    }, 2000);
     
     console.log('Инструменты отладки визуализаций загружены. Используйте window.debugVisualizations для диагностики.');
 })();

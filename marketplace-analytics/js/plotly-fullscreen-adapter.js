@@ -275,20 +275,51 @@
         handleModalShown: function() {
             utils.log('Модальное окно открыто, оптимизируем диаграмму');
             
-            setTimeout(() => {
-                const container = utils.getElement(config.selectors.fullscreenContainer);
-                if (!container) return;
+            // Добавляем многократные попытки оптимизации с возрастающими интервалами
+            this.scheduleResizeAttempts();
+        },
+
+        // Новый метод для планирования нескольких попыток оптимизации
+        scheduleResizeAttempts: function() {
+            const container = utils.getElement(config.selectors.fullscreenContainer);
+            if (!container) {
+                utils.log('Контейнер не найден', 'error');
+                return;
+            }
+            
+            const iframe = utils.getElement(config.selectors.iframe, container);
+            if (!iframe) {
+                utils.log('iframe не найден', 'error');
+                return;
+            }
+            
+            // Пробуем получить тип диаграммы из URL
+            const urlParams = new URLSearchParams(iframe.src.split('?')[1] || '');
+            const chartTypeFromUrl = urlParams.get('chart_type');
+            
+            // Поэтапные попытки с экспоненциально увеличивающимся интервалом
+            const attemptIntervals = [100, 300, 600, 1000, 1500];
+            let attemptCount = 0;
+            
+            const attemptResize = () => {
+                utils.log(`Попытка оптимизации #${attemptCount + 1}`);
                 
-                const iframe = utils.getElement(config.selectors.iframe, container);
-                if (!iframe) return;
+                try {
+                    this.optimizeChart(iframe, chartTypeFromUrl)
+                        .then(() => utils.log(`Попытка #${attemptCount + 1} успешна`))
+                        .catch(err => utils.log(`Ошибка в попытке #${attemptCount + 1}: ${err.message}`, 'warn'));
+                } catch (e) {
+                    utils.log(`Исключение в попытке #${attemptCount + 1}: ${e.message}`, 'error');
+                }
                 
-                // Пробуем получить тип диаграммы из URL
-                const urlParams = new URLSearchParams(iframe.src.split('?')[1] || '');
-                const chartTypeFromUrl = urlParams.get('chart_type');
-                
-                // Запускаем оптимизацию, возможно с предварительно известным типом
-                this.optimizeChart(iframe, chartTypeFromUrl);
-            }, 300);
+                attemptCount++;
+                if (attemptCount < attemptIntervals.length) {
+                    setTimeout(attemptResize, attemptIntervals[attemptCount]);
+                }
+            };
+            
+            // Начинаем первую попытку
+            setTimeout(attemptResize, attemptIntervals[0]);
         },
         
         // Обработка события изменения размера окна
@@ -316,7 +347,14 @@
                 return Promise.reject(new Error('Iframe недоступен'));
             }
             
-            // Ждем загрузки содержимого iframe
+            // Добавляем проверку видимости и размеров контейнера
+            const container = iframe.parentElement;
+            if (!container || container.clientWidth === 0 || container.clientHeight === 0) {
+                utils.log('Контейнер не виден или имеет нулевые размеры', 'error');
+                return Promise.reject(new Error('Недопустимые размеры контейнера'));
+            }
+            
+            // Далее идет существующий код с дополнительными проверками и обработкой ошибок
             return this._waitForIframeLoad(iframe)
                 .then(() => {
                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -338,9 +376,16 @@
                     utils.log(`Обнаружен тип диаграммы: ${chartType}`);
                     
                     // Получаем размеры контейнера
-                    const container = iframe.parentElement;
                     const width = container.clientWidth;
                     const height = container.clientHeight;
+                    
+                    // Дополнительная проверка размеров после получения
+                    if (width < 50 || height < 50) {
+                        utils.log(`Слишком малые размеры контейнера: ${width}x${height}`, 'warn');
+                        // Используем резервные размеры, если фактические слишком малы
+                        width = Math.max(width, 800);
+                        height = Math.max(height, 600);
+                    }
                     
                     // Создаем оптимизированный layout
                     const optimizedLayout = utils.getOptimizedLayout(chartType, width, height);
@@ -354,16 +399,45 @@
                     return true;
                 })
                 .catch(err => {
+                    // Улучшенная обработка ошибок
                     utils.log(`Ошибка при оптимизации: ${err.message}`, 'error');
                     
-                    // Применяем запасной вариант через стандартные инструменты
-                    if (window.iframeChartHandler && iframe.id) {
-                        window.iframeChartHandler.resizeIframeChart(iframe.id);
-                    }
+                    // Применяем запасной вариант для решения проблемы
+                    this._tryFallbackOptimization(iframe, knownChartType);
                     
                     // Возвращаем отклоненный Promise для обработки ошибки вызывающей стороной
                     return Promise.reject(err);
                 });
+        },
+
+        // Новый метод для запасной стратегии оптимизации
+        _tryFallbackOptimization: function(iframe, chartType) {
+            try {
+                utils.log('Применяем запасную стратегию оптимизации', 'warn');
+                
+                if (!iframe || !iframe.contentWindow) return;
+                
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const plotlyDiv = iframeDoc.querySelector('.plotly-graph-div');
+                
+                if (!plotlyDiv || !iframe.contentWindow.Plotly) return;
+                
+                // Получаем размеры контейнера
+                const container = iframe.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Принудительно устанавливаем размеры через прямой вызов API
+                iframe.contentWindow.Plotly.relayout(plotlyDiv, {
+                    width: width,
+                    height: height,
+                    'autosize': true
+                });
+                
+                utils.log('Запасная оптимизация применена', 'info');
+            } catch (e) {
+                utils.log(`Ошибка в запасной оптимизации: ${e.message}`, 'error');
+            }
         },
         
         // Ожидание загрузки iframe

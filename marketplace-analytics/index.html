@@ -285,7 +285,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <div id="viz-container" style="height: 500px; position: relative;"></div>
+                    <div id="viz-container" style="height: 500px; position: relative;">
+                        <!-- Добавляем предзагрузчик -->
+                        <div class="visualization-loader">
+                            <div class="visualization-spinner"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -363,6 +368,61 @@
                 }
             }
         }, 1000); // Проверяем через 1 секунду после загрузки
+    });
+    </script>
+
+    <script>
+    // Проверка наличия ключевых компонентов и инициализация при необходимости
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            console.log("Проверка состояния системы визуализаций...");
+            
+            // Проверяем существует ли visualizationManager
+            if (!window.visualizationManager) {
+                console.error("visualizationManager не инициализирован! Создаем базовую версию...");
+                
+                // Создаем базовую версию
+                window.visualizationManager = {
+                    _visualizations: [{
+                        id: 'viz_chastota',
+                        title: 'Частота упоминаний достоинств и их связь с рейтингом',
+                        path: 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
+                        type: 'bar',
+                        category: 'analysis'
+                    }],
+                    getVisualizations: function() {
+                        return this._visualizations;
+                    },
+                    getVisualizationById: function(id) {
+                        return this._visualizations.find(v => v.id === id);
+                    }
+                };
+            }
+            
+            // Проверяем, инициализирован ли thumbnailManager
+            if (window.thumbnailManager && !window.thumbnailManager.initialized) {
+                console.log("Запускаем инициализацию thumbnailManager...");
+                try {
+                    window.thumbnailManager.init();
+                } catch (e) {
+                    console.error("Ошибка при инициализации thumbnailManager:", e);
+                }
+            }
+            
+            // Проверяем наличие миниатюр
+            const thumbnails = document.querySelectorAll('.viz-thumbnail');
+            if (thumbnails.length === 0) {
+                console.warn("Миниатюры не созданы, запускаем запасной вариант...");
+                if (window.thumbnailManager) {
+                    window.thumbnailManager.refreshAll();
+                }
+            }
+            
+            // Запускаем проверку статуса системы
+            if (window.debugVisualizations && window.debugVisualizations.checkSystemStatus) {
+                window.debugVisualizations.checkSystemStatus();
+            }
+        }, 1000);
     });
     </script>
 </body>

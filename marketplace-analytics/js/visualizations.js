@@ -4,7 +4,7 @@
  * Отвечает за загрузку, отображение и управление визуализациями из внешних HTML-файлов.
  * Включает функционал ленивой загрузки, обработки ошибок, фильтрации и поиска.
  * 
- * @author MarketAnalytics Team
+ * @author 
  * @version 1.1.0
  */
 
@@ -60,91 +60,129 @@
     // ========================
     // Массив визуализаций
     // ========================
-    // Пути к файлам визуализаций
-    const visualizations = [
-        {
-            id: 'raspredelenie-reytingov',
-            title: 'Распределение рейтингов отзывов',
-            path: 'viz_Raspredelenie_reytingov_otzyvov__ves_korpus_.html',
-            category: 'ratings',
-            type: 'bar',
-            description: 'Распределение рейтингов по всему корпусу отзывов'
-        },
-        {
-            id: 'chastota-upominaniy-dostoinstv',
-            title: 'Частота упоминаний достоинств',
-            path: 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
-            category: 'mentions',
-            type: 'bar',
-            description: 'Частота упоминаний достоинств и их связь с рейтингом'
-        },
-        {
-            id: 'chastota-upominaniy-problem',
-            title: 'Частота упоминаний проблем с аккумулятором',
-            path: 'viz_Chastota_upominaniy_problem_s_akkumulyatorom_i_ikh_vliyanie_na_reyting.html',
-            category: 'problems',
-            type: 'bar',
-            description: 'Анализ частоты упоминаний проблем с аккумулятором'
-        },
-        {
-            id: 'protsent-raspredeleniya',
-            title: 'Распределение типов отзывов',
-            path: 'viz_Protsentnoe_raspredelenie_polozhitelnykh__neytralnykh_i_otritsatelnykh_otzyvov.html',
-            category: 'distribution',
-            type: 'pie',
-            description: 'Процентное распределение положительных, нейтральных и отрицательных отзывов'
-        },
-        {
-            id: 'trend-upominaniy',
-            title: 'Тренд упоминаний доставки',
-            path: 'viz_Trend_upominaniy_bystroy_dostavki_i_ikh_svyaz_s_reytingom.html',
-            category: 'trends',
-            type: 'line',
-            description: 'Тренд упоминаний быстрой доставки и их связь с рейтингом'
-        },
-        {
-            id: 'vliyanie-konkretnykh-problem',
-            title: 'Влияние конкретных проблем',
-            path: 'viz_Vliyanie_konkretnykh_problem_na_sredniy_reyting.html',
-            category: 'problems',
-            type: 'bar',
-            description: 'Влияние конкретных проблем на средний рейтинг отзывов'
-        },
-        {
-            id: 'vzaimosvyaz-legkosti-sborki',
-            title: 'Взаимосвязь легкости сборки и рейтинга',
-            path: 'viz_Vzaimosvyaz_legkosti_sborki_i_reytinga.html',
-            category: 'correlations',
-            type: 'scatter',
-            description: 'Анализ связи между легкостью сборки и рейтингом продукта'
-        },
-        {
-            id: 'vzaimosvyaz-rekomendatsiy',
-            title: 'Взаимосвязь рекомендаций и рейтинга',
-            path: 'viz_Vzaimosvyaz_rekomendatsiy_polzovateley_i_reytinga.html',
-            category: 'correlations',
-            type: 'scatter',
-            description: 'Влияние рекомендаций пользователей на рейтинг'
-        },
-        {
-            id: 'vzaimosvyaz-komplektatsii',
-            title: 'Взаимосвязь комплектации и рейтинга',
-            path: 'viz_Vzaimosvyaz_upominaniya_komplektatsii_i_reytinga.html',
-            category: 'correlations',
-            type: 'scatter',
-            description: 'Анализ влияния комплектации на рейтинг отзывов'
-        },
-        {
-            id: 'chastota-upominaniy-vesa',
-            title: 'Частота упоминаний веса',
-            path: 'viz_Chastota_upominaniy_i_vliyanie_legkosti_vesa_na_reyting.html',
-            category: 'mentions',
-            type: 'bar',
-            description: 'Частота упоминаний и влияние легкости веса на рейтинг'
+    // Будет заполнен динамически
+    const visualizations = [];
+
+    // Функция для получения списка визуализаций
+    async function loadVisualizations() {
+        // Определение, работаем через file:// или http(s)
+        const isLocalFile = window.location.protocol === 'file:';
+        
+        try {
+            if (isLocalFile) {
+                console.log('Обнаружен протокол file:// - используем статические данные');
+                // В режиме file:// используем предопределенные визуализации
+                
+                // Заполняем массив визуализаций
+                visualizations.length = 0;
+                staticVizFiles.forEach((file, index) => {
+                    const id = `viz_${index + 1}`;
+                    const nameParts = file.replace('viz_', '').replace('.html', '').split('_');
+                    const title = nameParts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+                    
+                    visualizations.push({
+                        id: id,
+                        title: title,
+                        path: file,
+                        type: index % 2 === 0 ? 'bar' : (index % 3 === 0 ? 'pie' : 'scatter'),
+                        category: 'analysis'
+                    });
+                });
+                
+                console.log(`Загружено ${visualizations.length} статических визуализаций`);
+                return visualizations;
+            } else {
+                // Для HTTP/HTTPS - запрос к директории
+                const response = await fetch(window.visualizationsBasePath || '../analytics_output/visualizations/');
+                if (!response.ok) {
+                    throw new Error(`Ошибка загрузки списка визуализаций: ${response.status}`);
+                }
+                
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Получаем все ссылки в директории
+                const links = Array.from(doc.querySelectorAll('a'));
+                
+                // Фильтруем только файлы формата viz_*.html
+                const vizRegex = /^viz_.*\.html$/;
+                const vizFiles = links
+                    .map(link => {
+                        const href = link.getAttribute('href');
+                        if (!href) return null;
+                        
+                        // Извлекаем только имя файла из пути для надежности
+                        const fileName = href.split('/').pop();
+                        return fileName && vizRegex.test(fileName) ? fileName : null;
+                    })
+                    .filter(Boolean); // Убираем null значения
+                
+                console.log(`Найдено ${vizFiles.length} файлов визуализаций`);
+                
+                // Очищаем текущий массив
+                visualizations.length = 0;
+                
+                // Создаем объекты визуализаций на основе найденных файлов
+                vizFiles.forEach((file, index) => {
+                    const id = `viz_${index + 1}`;
+                    const nameParts = file.replace('viz_', '').replace('.html', '').split('_');
+                    const title = nameParts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+                    
+                    visualizations.push({
+                        id: id,
+                        title: title,
+                        path: file,
+                        type: detectChartTypeFromFileName(file),
+                        category: 'analysis'
+                    });
+                });
+                
+                return visualizations;
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке визуализаций:', error);
+            console.log('Используем резервные статические визуализации');
+            
+            // Используем резервные статические данные в случае ошибки
+            visualizations.length = 0;
+            visualizations.push(...fallbackVisualizations);
+            
+            // Если fallbackVisualizations пуст, создадим минимальный набор
+            if (visualizations.length === 0) {
+                visualizations.push({
+                    id: 'viz_demo',
+                    title: 'Демонстрационная визуализация',
+                    path: 'viz_demo.html',
+                    type: 'bar',
+                    category: 'analysis',
+                    description: 'Пример визуализации для проверки функциональности'
+                });
+            }
+            
+            return visualizations;
         }
-        // Можно добавить другие визуализации, следуя тому же формату
+    }
+
+    // Вспомогательная функция для определения типа диаграммы по имени файла
+    function detectChartTypeFromFileName(fileName) {
+        const lowerName = fileName.toLowerCase();
+        if (lowerName.includes('raspredelenie') || lowerName.includes('chastota')) {
+            return 'bar';
+        } else if (lowerName.includes('vzaimosvyaz') || lowerName.includes('svyaz')) {
+            return 'scatter';
+        } else if (lowerName.includes('protsentnoe') || lowerName.includes('dolya')) {
+            return 'pie';
+        } else {
+            return 'bar'; // По умолчанию
+        }
+    }
+
+    // Резервные статические визуализации
+    const fallbackVisualizations = [
+        // Оставляем как запасной вариант
     ];
-    
+
     // ========================
     // Состояние приложения
     // ========================
@@ -165,7 +203,7 @@
     // ========================
     // Инициализация
     // ========================
-    function init() {
+    async function init() {
         // Получение DOM-элементов
         const elements = {};
         Object.entries(config.selectors).forEach(([key, selector]) => {
@@ -183,23 +221,55 @@
             state.bootstrap = bootstrap;
         }
         
-        // Сбор уникальных категорий и типов для фильтров
-        visualizations.forEach(viz => {
-            if (viz.category) state.categories.add(viz.category);
-            if (viz.type) state.types.add(viz.type);
-        });
+        // Показываем индикатор загрузки
+        if (elements.grid) {
+            elements.grid.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-3">Загружаем визуализации...</p></div>';
+        }
         
-        // Заполнение селектов категорий и типов
-        populateFilterOptions(elements.categorySelect, Array.from(state.categories));
-        populateFilterOptions(elements.typeSelect, Array.from(state.types));
-        
-        // Настройка обработчиков событий для фильтров и поиска
-        setupEventListeners(elements);
-        
-        // Первоначальное отображение визуализаций
-        filterAndDisplayVisualizations(elements);
+        try {
+            // Загружаем список визуализаций
+            await loadVisualizations();
+            
+            // Сбор уникальных категорий и типов для фильтров
+            state.categories.clear();
+            state.types.clear();
+            
+            visualizations.forEach(viz => {
+                if (viz.category) state.categories.add(viz.category);
+                if (viz.type) state.types.add(viz.type);
+            });
+            
+            // Заполнение селектов категорий и типов
+            if (elements.categorySelect) {
+                elements.categorySelect.innerHTML = '<option value="all">Все категории</option>';
+                populateFilterOptions(elements.categorySelect, Array.from(state.categories));
+            }
+            
+            if (elements.typeSelect) {
+                elements.typeSelect.innerHTML = '<option value="all">Все типы</option>';
+                populateFilterOptions(elements.typeSelect, Array.from(state.types));
+            }
+            
+            // Настройка обработчиков событий для фильтров и поиска
+            setupEventListeners(elements);
+            
+            // Первоначальное отображение визуализаций
+            filterAndDisplayVisualizations(elements);
+        } catch (error) {
+            console.error('Ошибка при инициализации визуализаций:', error);
+            
+            if (elements.grid) {
+                elements.grid.innerHTML = `
+                    <div class="alert alert-danger text-center" role="alert">
+                        <i class="bi bi-exclamation-triangle fs-4 mb-3"></i>
+                        <p>Произошла ошибка при загрузке визуализаций.</p>
+                        <button class="btn btn-outline-danger mt-2" onclick="init()">Повторить загрузку</button>
+                    </div>
+                `;
+            }
+        }
     }
-    
+
     // ========================
     // Заполнение опций фильтров
     // ========================
@@ -432,7 +502,7 @@
         
         if (!content || !loader || !fallback) return;
         
-        // Создаем контейнер для миниатюры, но не добавляем обработчиков
+        // Создаем контейнер для миниатюры
         const thumbnailContainer = document.createElement('div');
         thumbnailContainer.className = 'viz-thumbnail-container';
         thumbnailContainer.style.width = '100%';
@@ -440,23 +510,58 @@
         thumbnailContainer.style.position = 'relative';
         content.appendChild(thumbnailContainer);
         
-        // Используем новый менеджер миниатюр, если доступен
-        if (window.thumbnailManager) {
-            // Делегируем создание миниатюры менеджеру
-            window.thumbnailManager.createThumbnail(viz.id);
-            if (loader) loader.style.display = 'none';
-        } else {
-            // Запасной вариант со старой логикой создания миниатюр
-            if (window.vizThumbnails && window.vizThumbnails.createThumbnail) {
-                window.vizThumbnails.createThumbnail(viz.id, viz.path, thumbnailContainer);
-                if (loader) loader.style.display = 'none';
-            }
-        }
+        // Загрузка изображения миниатюры
+        const img = document.createElement('img');
+        img.className = 'viz-thumbnail';
+        img.alt = viz.title;
+        img.style.width = '100%';
+        img.style.height = 'auto';
         
-        // Автоматически скрыть загрузчик через 5 секунд
-        setTimeout(() => {
-            if (loader) loader.style.display = 'none';
-        }, 5000);
+        // Путь к PNG миниатюре
+        const pngPath = `${config.visualizationsPath}${viz.path.replace(/\.html$/, '.png')}`;
+        img.src = pngPath;
+        
+        // Исправленный обработчик ошибки загрузки изображения
+        img.onerror = function() {
+            console.error(`Не удалось загрузить миниатюру: ${pngPath}`);
+            img.style.display = 'none';
+            
+            // Создаем заглушку с информативным сообщением
+            const errorContainer = document.createElement('div');
+            errorContainer.style.padding = '10px';
+            errorContainer.style.textAlign = 'center';
+            
+            const errorIcon = document.createElement('div');
+            errorIcon.innerHTML = '⚠️';
+            errorIcon.style.fontSize = '24px';
+            errorContainer.appendChild(errorIcon);
+            
+            const errorText = document.createElement('div');
+            errorText.textContent = 'Не удалось загрузить визуализацию';
+            errorText.style.color = '#dc3545';
+            errorText.style.fontSize = '12px';
+            errorText.style.marginTop = '5px';
+            errorContainer.appendChild(errorText);
+            
+            // Кнопка повторной загрузки
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = 'Повторить';
+            retryBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+            retryBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Повторная попытка загрузки
+                errorContainer.style.display = 'none';
+                loader.style.display = 'block';
+                img.style.display = '';
+                img.src = pngPath + '?retry=' + new Date().getTime(); // Добавляем параметр для обхода кэширования
+            });
+            errorContainer.appendChild(retryBtn);
+            
+            thumbnailContainer.appendChild(errorContainer);
+        };
+        
+        // Добавляем изображение в контейнер
+        thumbnailContainer.appendChild(img);
     }
     
     // ========================
@@ -536,25 +641,18 @@
     // ========================
     // Создание элемента пагинации
     // ========================
-    function createPaginationItem(text, disabled, onClick, active = false) {
+    function createPaginationItem(label, disabled, onClick, active = false) {
         const li = document.createElement('li');
         li.className = `page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}`;
         
         const a = document.createElement('a');
         a.className = 'page-link';
-        a.href = '#visualizations';
-        a.innerText = text;
-        
-        if (!disabled && onClick) {
-            a.addEventListener('click', function(e) {
+        a.href = '#';
+        a.textContent = label;
+        if (!disabled) {
+            a.addEventListener('click', (e) => {
                 e.preventDefault();
                 onClick();
-                
-                // Плавная прокрутка к началу раздела визуализаций
-                document.getElementById('visualizations').scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
             });
         }
         
@@ -577,6 +675,19 @@
         };
     }
 
+    // Добавьте этот вспомогательный метод в объект utils или в начало функции createVisualizationCard
+    function safeClassNameReplace(element, search, replacement) {
+        if (!element) return;
+        
+        // Безопасная работа с className
+        if (typeof element.className === 'string') {
+            element.className = element.className.split(search).join(replacement);
+        } else if (element.className && typeof element.className.baseVal === 'string') {
+            // Для SVG элементов
+            element.className.baseVal = element.className.baseVal.split(search).join(replacement);
+        }
+    }
+
     window.addEventListener('resize', debounce(() => {
         document.querySelectorAll('.visualization-iframe').forEach(iframe => {
             // Повторно запустить масштабирование для всех iframe при ресайзе
@@ -587,7 +698,11 @@
     }, 250));
 
     // Инициализация при загрузке DOM
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+        init().catch(error => {
+            console.error('Ошибка при инициализации:', error);
+        });
+    });
 
     // ========================
     // Внешний API для работы с визуализациями
@@ -636,39 +751,20 @@
             }
         }
     };
-    
-    // Замените обработчик ошибок загрузки изображения (примерно строка 110)
-    img.onerror = function() {
-        console.error(`Не удалось загрузить миниатюру: ${pngPath}`);
-        img.style.display = 'none';
+
+    console.log('visualizations.js загружен');
+    console.log('Состояние visualizationManager:', window.visualizationManager);
+
+    // Явно проверить создание объекта
+    if (!window.visualizationManager) {
+        console.error('visualizationManager не инициализирован!');
         
-        // Создаем заглушку с информативным сообщением
-        const errorContainer = document.createElement('div');
-        errorContainer.style.padding = '10px';
-        errorContainer.style.textAlign = 'center';
-        
-        const errorIcon = document.createElement('div');
-        errorIcon.innerHTML = '⚠️';
-        errorIcon.style.fontSize = '24px';
-        errorContainer.appendChild(errorIcon);
-        
-        const errorText = document.createElement('div');
-        errorText.textContent = 'Не удалось загрузить визуализацию';
-        errorText.style.color = '#dc3545';
-        errorText.style.fontSize = '12px';
-        errorText.style.marginTop = '5px';
-        errorContainer.appendChild(errorText);
-        
-        // Кнопка повторной загрузки
-        const retryBtn = document.createElement('button');
-        retryBtn.textContent = 'Повторить';
-        retryBtn.className = 'btn btn-sm btn-outline-primary mt-2';
-        retryBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            createStaticThumbnail(card, vizData);
-        });
-        errorContainer.appendChild(retryBtn);
-        
-        thumbnail.appendChild(errorContainer);
-    };
+        // Экстренное создание минимальной версии
+        window.visualizationManager = {
+            getVisualizations: function() {
+                console.warn('Используется аварийная версия visualizationManager');
+                return [];
+            }
+        };
+    }
 })();

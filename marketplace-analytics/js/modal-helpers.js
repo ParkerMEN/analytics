@@ -159,127 +159,99 @@
     
     // Добавляем функцию для полноэкранного режима (новая функция)
     function setupFullscreenButton() {
-        const fullscreenBtn = document.getElementById('fullscreen-btn');
-        if (fullscreenBtn) {
-            fullscreenBtn.addEventListener('click', function() {
-                const vizModal = document.getElementById('vizModal');
-                const vizFullscreenModal = document.getElementById('vizFullscreenModal');
-                
-                // Копирование содержимого между модальными окнами
-                const sourceContainer = document.getElementById('viz-container');
-                const targetContainer = document.getElementById('fullscreen-viz-container');
-                
-                if (sourceContainer && targetContainer) {
-                    // Запоминаем оригинальный iframe для извлечения URL и других данных
-                    const originalIframe = sourceContainer.querySelector('iframe');
-                    if (!originalIframe) {
-                        console.error('[ModalHelpers] Не найден исходный iframe');
-                        return;
-                    }
+        console.log('[ModalHelpers] Настройка кнопки полноэкранного режима');
+        
+        const fullscreenBtns = document.querySelectorAll('.viz-fullscreen-btn');
+        if (fullscreenBtns.length > 0) {
+            fullscreenBtns.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     
-                    const iframeSrc = originalIframe.src;
+                    const vizCard = this.closest('.visualization-card');
+                    if (!vizCard) return;
                     
-                    // Собираем данные о диаграмме из исходного iframe, если возможно
-                    let chartType = 'unknown';
-                    try {
-                        if (originalIframe.contentWindow._lastChartType) {
-                            chartType = originalIframe.contentWindow._lastChartType;
-                        } else if (window._lastPlotlySizes && window._lastPlotlySizes[originalIframe.id]) {
-                            chartType = window._lastPlotlySizes[originalIframe.id].chartType;
-                        }
-                    } catch (e) {
-                        console.warn('[ModalHelpers] Не удалось получить тип диаграммы из iframe:', e);
-                    }
+                    const vizId = vizCard.dataset.vizId;
+                    if (!vizId) return;
                     
-                    console.log(`[ModalHelpers] Тип диаграммы для полноэкранного режима: ${chartType}`);
+                    console.log(`[ModalHelpers] Открытие визуализации ${vizId} в полноэкранном режиме`);
                     
-                    // Очищаем целевой контейнер
-                    targetContainer.innerHTML = '';
-                    
-                    // Создаем новый iframe вместо копирования существующего
-                    if (iframeSrc) {
-                        // Создаем загрузчик
-                        const loader = document.createElement('div');
-                        loader.className = 'visualization-loader';
-                        loader.innerHTML = '<div class="visualization-spinner"></div>';
-                        targetContainer.appendChild(loader);
-                        
-                        // Создаем новый iframe с тем же источником
-                        const newIframe = document.createElement('iframe');
-                        newIframe.className = 'viz-modal-iframe';
-                        newIframe.id = 'fullscreen-viz-iframe-' + Date.now();
-                        newIframe.style.width = '100%';
-                        newIframe.style.height = '100%';
-                        newIframe.style.border = 'none';
-                        
-                        // Добавляем параметр chart_type в URL для передачи информации о типе диаграммы
-                        const separator = iframeSrc.includes('?') ? '&' : '?';
-                        newIframe.src = `${iframeSrc}${separator}chart_type=${chartType}&fullscreen=true`;
-                        
-                        // Сохраняем информацию о типе диаграммы для дальнейшего использования
-                        window._lastFullscreenChartType = chartType;
-                        
-                        // Обработчик завершения загрузки iframe
-                        newIframe.onload = function() {
-                            if (loader) loader.style.display = 'none';
-                            
-                            // Пытаемся передать тип диаграммы непосредственно в контент iframe
-                            try {
-                                setTimeout(() => {
-                                    newIframe.contentWindow.postMessage({
-                                        type: 'set-chart-type',
-                                        chartType: chartType
-                                    }, '*');
-                                }, 100);
-                            } catch (e) {
-                                console.warn('[ModalHelpers] Не удалось передать тип диаграммы в iframe', e);
-                            }
-                        };
-                        
-                        targetContainer.appendChild(newIframe);
+                    // Если доступен thumbnailManager, используем его метод
+                    if (window.thumbnailManager && typeof window.thumbnailManager.openFullscreen === 'function') {
+                        window.thumbnailManager.openFullscreen(vizId);
                     } else {
-                        console.error('[ModalHelpers] Не удалось получить URL исходного iframe');
-                        return;
+                        // Запасной вариант
+                        openFullscreenVisualization(vizId);
                     }
-                    
-                    // Закрываем обычное модальное окно
-                    if (window.bootstrap && vizModal) {
-                        const modalInstance = bootstrap.Modal.getInstance(vizModal);
-                        if (modalInstance) modalInstance.hide();
-                    }
-                    
-                    // Открываем полноэкранное модальное окно
-                    if (window.bootstrap && vizFullscreenModal) {
-                        const fullscreenModalInstance = new bootstrap.Modal(vizFullscreenModal);
-                        fullscreenModalInstance.show();
-                        
-                        // Добавляем обработчик для оптимизации через новый адаптер
-                        vizFullscreenModal.addEventListener('shown.bs.modal', function() {
-                            console.log('[ModalHelpers] Модальное окно открыто, запускаем оптимизацию диаграммы');
-                            
-                            setTimeout(() => {
-                                const iframe = targetContainer.querySelector('iframe');
-                                if (!iframe) return;
-                                
-                                // Используем новый адаптер, если доступен
-                                if (window.plotlyFullscreenAdapter) {
-                                    console.log('[ModalHelpers] Оптимизация через plotlyFullscreenAdapter');
-                                    window.plotlyFullscreenAdapter.optimizeChart(iframe)
-                                        .catch(err => {
-                                            console.error('[ModalHelpers] Ошибка оптимизации через адаптер:', err);
-                                            
-                                            // Теперь вызываем через window.modalHelpers
-                                            window.modalHelpers.fallbackResizing(iframe, chartType, targetContainer);
-                                        });
-                                } else {
-                                    // Теперь вызываем через window.modalHelpers
-                                    window.modalHelpers.fallbackResizing(iframe, chartType, targetContainer);
-                                }
-                            }, 200);
-                        }, { once: true });
-                    }
-                }
+                });
             });
+        } else {
+            console.log('[ModalHelpers] Не найдены кнопки полноэкранного режима');
+        }
+    }
+    
+    // Функция для открытия визуализации в полноэкранном режиме (запасной вариант)
+    function openFullscreenVisualization(vizId) {
+        if (!window.visualizationManager) {
+            console.error('[ModalHelpers] visualizationManager не доступен');
+            return;
+        }
+        
+        const vizData = window.visualizationManager.getVisualizationById(vizId);
+        if (!vizData) {
+            console.error(`[ModalHelpers] Визуализация с ID ${vizId} не найдена`);
+            return;
+        }
+        
+        const vizFullscreenModal = document.getElementById('vizFullscreenModal');
+        if (!vizFullscreenModal) {
+            console.error('[ModalHelpers] Модальное окно #vizFullscreenModal не найдено');
+            return;
+        }
+        
+        // Получаем контейнер для контента
+        const targetContainer = document.getElementById('fullscreen-viz-container');
+        if (!targetContainer) {
+            console.error('[ModalHelpers] Контейнер #fullscreen-viz-container не найден');
+            return;
+        }
+        
+        // Устанавливаем заголовок
+        const titleElement = vizFullscreenModal.querySelector('.modal-title');
+        if (titleElement) {
+            titleElement.textContent = vizData.title;
+        }
+        
+        // Очищаем целевой контейнер
+        targetContainer.innerHTML = '';
+        
+        // Создаем iframe для визуализации
+        const iframe = document.createElement('iframe');
+        iframe.className = 'viz-modal-iframe';
+        iframe.src = `${window.visualizationsBasePath || '../analytics_output/visualizations/'}${vizData.path}`;
+        iframe.id = `fullscreen-iframe-${vizId}`;
+        iframe.setAttribute('allowfullscreen', 'true');
+        iframe.onload = function() {
+            console.log(`[ModalHelpers] Загружен iframe для визуализации ${vizId}`);
+            
+            // Изменяем размеры iframe после загрузки
+            setTimeout(() => {
+                if (window.plotlyFullscreenAdapter && window.plotlyFullscreenAdapter.optimizeChart) {
+                    window.plotlyFullscreenAdapter.optimizeChart(iframe);
+                }
+            }, 300);
+        };
+        
+        targetContainer.appendChild(iframe);
+        
+        // Открываем модальное окно через Bootstrap
+        if (window.bootstrap && bootstrap.Modal) {
+            const bsModal = new bootstrap.Modal(vizFullscreenModal);
+            bsModal.show();
+        } else {
+            // Запасной вариант открытия
+            vizFullscreenModal.style.display = 'block';
+            vizFullscreenModal.classList.add('show');
         }
     }
     

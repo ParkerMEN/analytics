@@ -94,14 +94,69 @@
     const iframeChartHandler = {
         // Инициализация системы адаптации для iframe
         init: function() {
-            // Поиск всех iframe с визуализациями
+            // Исправленный метод findAndRegisterIframes
+            this.findAndRegisterIframes = function() {
+                const iframes = document.querySelectorAll(config.selectors.iframe);
+                if (iframes.length === 0) {
+                    utils.log('Не найдены iframe с визуализациями', 'warn');
+                    return;
+                }
+                
+                utils.log(`Найдено ${iframes.length} iframe для регистрации`);
+                iframes.forEach(iframe => {
+                    // Добавление уникального ID, если его нет
+                    if (!iframe.id) {
+                        iframe.id = 'chart-iframe-' + Math.random().toString(36).substring(2, 15);
+                    }
+                    
+                    // Регистрация iframe для последующей обработки
+                    chartRegistry.set(iframe.id, {
+                        iframe: iframe,
+                        container: iframe.parentElement
+                    });
+                    
+                    // Инжекция скрипта для адаптивности
+                    this.injectScriptToIframe(iframe);
+                });
+            };
+            
+            // Вызываем метод поиска и регистрации iframe
             this.findAndRegisterIframes();
             
             // Обработка сообщений от iframe
             window.addEventListener('message', this.handleIframeMessage.bind(this));
         },
         
-        // Остальные методы iframeChartHandler...
+        // Обработка сообщений от iframe для ресайзинга
+        handleIframeMessage: function(event) {
+            try {
+                const message = event.data;
+                if (message && message.type === 'resize-request') {
+                    const iframeId = message.iframeId;
+                    if (iframeId && chartRegistry.has(iframeId)) {
+                        utils.log(`Получен запрос на изменение размера от iframe ${iframeId}`);
+                        // Дополнительная логика по необходимости
+                    }
+                }
+            } catch (error) {
+                utils.log(`Ошибка обработки сообщения от iframe: ${error.message}`, 'error');
+            }
+        },
+        
+        // Метод для изменения размера всех iframe с диаграммами
+        resizeAllIframeCharts: function() {
+            chartRegistry.forEach((info, iframeId) => {
+                if (info.iframe && info.container) {
+                    try {
+                        const containerSize = utils.getContentSize(info.container);
+                        utils.log(`Изменение размера iframe ${iframeId}: ${containerSize.width}x${containerSize.height}`);
+                        // Дополнительная логика изменения размера
+                    } catch (e) {
+                        utils.log(`Ошибка при изменении размера iframe ${iframeId}: ${e.message}`, 'error');
+                    }
+                }
+            });
+        },
         
         // Метод, который использует injectEnhancedIframeScript
         // Теперь использует модуль iframeScriptInjector
