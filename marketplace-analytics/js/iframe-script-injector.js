@@ -35,6 +35,31 @@
      * Обеспечивает адаптивное изменение размеров графиков Plotly с учетом типа диаграмм
      */
     function injectEnhancedIframeScript() {
+        // Добавляем обработчик сообщений для более раннего ресайза
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'resize-plotly') {
+                const plotlyDiv = document.querySelector('.plotly-graph-div');
+                if (plotlyDiv && window.Plotly) {
+                    const width = event.data.width || plotlyDiv.clientWidth;
+                    const height = event.data.height || plotlyDiv.clientHeight;
+                    
+                    // Принудительно устанавливаем размеры перед перерисовкой
+                    plotlyDiv.style.width = width + 'px';
+                    plotlyDiv.style.height = height + 'px';
+                    
+                    // Задержка перед релаяутом для применения CSS
+                    setTimeout(function() {
+                        Plotly.relayout(plotlyDiv, {
+                            width: width,
+                            height: height,
+                            'xaxis.automargin': true,
+                            'yaxis.automargin': true
+                        });
+                    }, 0);
+                }
+            }
+        });
+
         const scriptText = `
         (function() {
             console.log('[PlotlyResize] Инициализация адаптера изменения размеров Plotly графика');
@@ -215,6 +240,7 @@
                                       window.parent.document.getElementById('viz-container') !== null ||
                                       window.parent.document.getElementById('fullscreen-viz-container') !== null;
                         
+                        // Отправляем уведомление только один раз с более полными данными
                         window.parent.postMessage({
                             type: isModal ? 'plotly-modal-ready' : 'plotly-ready',
                             plotlyDiv: plotlyDiv,
@@ -222,27 +248,26 @@
                             dimensions: {
                                 width: plotlyElements[0].clientWidth,
                                 height: plotlyElements[0].clientHeight
-                            }
+                            },
+                            isFirstLoad: true // Отмечаем, что это первая загрузка
                         }, '*');
                         
                         console.log('[PlotlyResize] Уведомление о готовности отправлено (' + 
                             (isModal ? 'модальное' : 'стандартное') + ', тип диаграммы: ' + chartType + ')');
                         
-                        // Серия повторных отправок с увеличивающимися интервалами
-                        [300, 600, 1000, 1500].forEach(delay => {
-                            setTimeout(() => {
-                                window.parent.postMessage({
-                                    type: isModal ? 'plotly-modal-ready' : 'plotly-ready',
-                                    plotlyDiv: plotlyDiv,
-                                    chartType: chartType,
-                                    dimensions: {
-                                        width: plotlyElements[0].clientWidth,
-                                        height: plotlyElements[0].clientHeight
-                                    }
-                                }, '*');
-                                console.log('[PlotlyResize] Повторное уведомление, задержка: ' + delay + 'мс');
-                            }, delay);
-                        });
+                        // Только одно повторное уведомление с достаточной задержкой
+                        setTimeout(() => {
+                            window.parent.postMessage({
+                                type: isModal ? 'plotly-modal-ready' : 'plotly-ready',
+                                plotlyDiv: plotlyDiv,
+                                chartType: chartType,
+                                dimensions: {
+                                    width: plotlyElements[0].clientWidth,
+                                    height: plotlyElements[0].clientHeight
+                                },
+                                isFollowUp: true // Отмечаем, что это повторное уведомление
+                            }, '*');
+                        }, 600);
                     } else {
                         console.log('[PlotlyResize] Plotly элементы не найдены, повторная попытка через 200мс');
                         setTimeout(notifyParentWhenPlotlyReady, 200);

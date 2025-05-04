@@ -120,22 +120,16 @@
         
         // Проверяет путь к файлам визуализаций
         checkPaths: function() {
-            console.log('Проверка путей к файлам визуализаций...');
+            console.log('Checking visualization file paths...');
             
-            // Текущий путь страницы
-            console.log('Текущий путь: ' + window.location.pathname);
+            // Get base path from configuration
+            const basePath = window.appConfig ? window.appConfig.paths.visualizations : '../analytics_output/visualizations/';
             
-            // Базовый URL для относительных путей
-            const base = document.querySelector('base');
-            console.log('Базовый URL: ' + (base ? base.href : 'не задан'));
-            
-            // Попытка загрузить файл с разными путями для проверки
+            // Try different relative path combinations
             const paths = [
-                '/analytics_output/visualizations/viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
-                '../analytics_output/visualizations/viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
-                'analytics_output/visualizations/viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
-                'c:/projects/analytics_output/visualizations/viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
-                'file:///c:/projects/analytics_output/visualizations/viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html'
+                basePath + 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
+                './' + basePath + 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html',
+                '/' + basePath + 'viz_Chastota_upominaniy_dostoinstv_i_ikh_svyaz_s_reytingom.html'
             ];
             
             const results = [];

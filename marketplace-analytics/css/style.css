@@ -324,7 +324,14 @@ h1, h2, h3, h4, h5, h6 {
     width: 100%;
     height: 100%;
     border: none;
-    background-color: white;
+    position: relative;
+    z-index: 1;
+    opacity: 0; /* Начинаем с невидимого состояния */
+    transition: opacity 0.5s ease-in-out;
+}
+
+.viz-modal-iframe.ready {
+    opacity: 1;
 }
 
 /* Улучшенные стили для полноэкранного модального окна */
@@ -334,9 +341,108 @@ h1, h2, h3, h4, h5, h6 {
 
 #fullscreen-viz-container {
     width: 100%;
-    height: calc(100vh - 120px);
+    height: calc(100vh - 140px); /* Уменьшаем высоту, чтобы избежать вертикальной прокрутки */
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    padding: 10px; /* Добавляем отступ для предотвращения обрезания содержимого */
+    /* Добавляем предустановленные размеры для стабильности */
+    min-height: 450px;
+    transition: none !important; /* Отключаем анимацию для предотвращения дёрганья */
+}
+
+/* После стилей для #fullscreen-viz-container (~строка 380) добавить: */
+
+/* Улучшение плавности отображения и предотвращение дерганий */
+.viz-modal-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    opacity: 0; /* Начинаем с невидимого состояния */
+    transition: opacity 0.3s ease; /* Плавное появление */
+    will-change: opacity; /* Уведомляем браузер об анимации для оптимизации */
+    transform: translateZ(0); /* Включаем аппаратное ускорение */
+}
+
+.viz-modal-iframe.optimized {
+    opacity: 1 !important;
+}
+
+/* Предотвращаем ранний показ контента диаграмм */
+.modal-body {
+    position: relative;
+    background-color: #ffffff;
+}
+
+/* Гарантируем, что прелоадер всегда будет поверх iframe до завершения оптимизации */
+.viz-loading-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff;
+    z-index: 100; /* Выше чем у iframe */
+    opacity: 1;
+    transition: opacity 0.4s ease-out;
+    will-change: opacity;
+    transform: translateZ(0); /* Аппаратное ускорение */
+}
+
+/* Для iframe внутри контейнеров */
+#fullscreen-viz-container iframe,
+#viz-container iframe {
+    opacity: 0; /* Начинаем с невидимого состояния */
+    transition: opacity 0.3s ease; /* Плавное появление */
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Класс для iframe после оптимизации */
+.viz-modal-iframe.optimized {
+    opacity: 1 !important;
+}
+
+/* Принудительно отключаем анимацию трансформаций в Plotly */
+.plotly-graph-div .scatterlayer .trace,
+.plotly-graph-div .barlayer .trace,
+.plotly-graph-div .pielayer path {
+    transition: none !important;
+}
+
+/* Специфические настройки для разных типов диаграмм */
+#fullscreen-viz-container[data-chart-type="scatter"] {
+    height: calc(100vh - 160px);
+}
+
+#fullscreen-viz-container[data-chart-type="bar"] {
+    height: calc(100vh - 180px); /* Больше места для подписей оси X */
+}
+
+/* Отключение прокрутки внутри iframe */
+.viz-modal-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.modal-body {
+    padding: 0.5rem; /* Уменьшаем padding для более эффективного использования пространства */
+    overflow: hidden; /* Предотвращаем прокрутку в модальном окне */
 }
 
 /* Исправление для невидимых слоёв после закрытия модальных окон */
@@ -418,4 +524,56 @@ body:not(.modal-open) {
 .plotly .xtick text,
 .plotly .ytick text {
     font-family: 'Inter', sans-serif !important;
+}
+
+/* Стили для системы показа прелоадера и плавной загрузки диаграмм */
+.viz-loading-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff;
+    z-index: 10;
+    opacity: 1;
+    transition: opacity 0.3s ease-out;
+}
+
+.viz-loading-container.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.viz-loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #4361ee;
+    animation: viz-spinner 1s ease-in-out infinite;
+}
+
+.viz-loading-text {
+    margin-top: 15px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #333;
+}
+
+@keyframes viz-spinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Предотвращаем переполнение контейнеров диаграмм */
+#fullscreen-viz-container,
+#viz-container {
+    position: relative;
+    overflow: hidden;
+    background-color: white;
+    min-height: 400px; /* Гарантированная минимальная высота */
 }

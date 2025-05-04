@@ -278,6 +278,127 @@
             }
             
             return 'unknown';
+        },
+
+        // Получение заголовка диаграммы из iframe
+        getChartTitle: function(iframe) {
+            if (!iframe) return null;
+            
+            try {
+                const contents = this.getIframeContents(iframe);
+                if (!contents || !contents.document) return null;
+                
+                const plotlyDivs = contents.document.querySelectorAll('.plotly-graph-div');
+                if (plotlyDivs.length === 0) return null;
+                
+                const plotlyDiv = plotlyDivs[0];
+                
+                // Первый способ: через API Plotly (наиболее надежный)
+                if (contents.window.Plotly && plotlyDiv._fullLayout && plotlyDiv._fullLayout.title) {
+                    if (typeof plotlyDiv._fullLayout.title === 'object' && plotlyDiv._fullLayout.title.text) {
+                        const titleText = plotlyDiv._fullLayout.title.text.trim();
+                        if (titleText) return titleText;
+                    } else if (typeof plotlyDiv._fullLayout.title === 'string') {
+                        const titleText = plotlyDiv._fullLayout.title.trim();
+                        if (titleText) return titleText;
+                    }
+                }
+                
+                // Второй способ: поиск в DOM
+                // Ищем элемент заголовка в DOM структуре
+                const titleElement = plotlyDiv.querySelector('.gtitle');
+                if (titleElement && titleElement.textContent) {
+                    const titleText = titleElement.textContent.trim();
+                    if (titleText) return titleText;
+                }
+                
+                // Третий способ: поиск в JavaScript коде
+                // Ищем заголовок в скрипте plotly
+                const scriptContent = contents.document.body.innerHTML;
+                const titleRegex = /title:\s*{[\s\S]*?text:\s*['"]([^'"]+)['"]/;
+                const titleMatch = scriptContent.match(titleRegex);
+                if (titleMatch && titleMatch[1]) {
+                    return titleMatch[1].trim();
+                }
+                
+                // Четвертый способ: парсинг plotly данных
+                if (plotlyDiv && plotlyDiv.id) {
+                    const plotlyScripts = contents.document.querySelectorAll('script');
+                    for (let i = 0; i < plotlyScripts.length; i++) {
+                        const script = plotlyScripts[i].textContent;
+                        if (script.includes(plotlyDiv.id) && script.includes('Plotly.newPlot')) {
+                            // Попытка найти объект с title в скрипте
+                            const layoutRegex = new RegExp(`Plotly\\.newPlot\\([^,]+,[^,]+,\\s*({[\\s\\S]+?})`, 'i');
+                            const layoutMatch = script.match(layoutRegex);
+                            if (layoutMatch && layoutMatch[1]) {
+                                try {
+                                    // Безопасная оценка строки как JSON (без eval)
+                                    const layoutText = layoutMatch[1].replace(/([a-zA-Z0-9_$]+):/g, '"$1":')
+                                                       .replace(/'/g, '"')
+                                                       .replace(/,(\s*[}\]])/g, '$1');
+                                    // Попытка извлечь заголовок из JSON
+                                    const jsonRegex = /"title"\s*:\s*(?:{[^}]*"text"\s*:\s*"([^"]*)"|"([^"]*)")/;
+                                    const jsonMatch = layoutText.match(jsonRegex);
+                                    if (jsonMatch) {
+                                        return (jsonMatch[1] || jsonMatch[2]).trim();
+                                    }
+                                } catch (e) {
+                                    this.log(`Ошибка при парсинге layout: ${e.message}`, 'warn');
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                this.log(`Ошибка при получении заголовка диаграммы: ${e.message}`, 'warn');
+            }
+            
+            return null;
+        },
+
+        // Создание и добавление прелоадера для диаграммы
+        createLoader: function(container, message = 'Оптимизация диаграммы...') {
+            if (!container) return null;
+            
+            // Удаляем старый прелоадер, если он существует
+            const oldLoader = container.querySelector('.viz-loading-container');
+            if (oldLoader) oldLoader.remove();
+            
+            // Создаем новый прелоадер
+            const loader = document.createElement('div');
+            loader.className = 'viz-loading-container';
+            
+            const spinner = document.createElement('div');
+            spinner.className = 'viz-loading-spinner';
+            loader.appendChild(spinner);
+            
+            const text = document.createElement('div');
+            text.className = 'viz-loading-text';
+            text.textContent = message;
+            loader.appendChild(text);
+            
+            // Добавляем прелоадер в контейнер
+            container.appendChild(loader);
+            
+            return loader;
+        },
+        
+        // Скрытие прелоадера плавно
+        hideLoader: function(container, delay = 300) {
+            if (!container) return;
+            
+            const loader = container.querySelector('.viz-loading-container');
+            if (loader) {
+                // Плавно скрываем
+                loader.classList.add('hidden');
+                
+                // Удаляем через время анимации
+                setTimeout(() => {
+                    if (loader && loader.parentNode) {
+                        loader.remove();
+                    }
+                }, delay);
+            }
         }
     };
 
@@ -630,6 +751,9 @@
             // Настраиваем наблюдатель за изменениями в DOM для динамически добавляемых элементов
             this._setupMutationObserver();
             
+            // Настраиваем обработчики кнопок перехода в полноэкранный режим
+            this._setupFullscreenButtons();
+            
             utils.log('Менеджер диаграмм успешно инициализирован');
             
             // Возвращаем this для цепочки вызовов
@@ -716,18 +840,48 @@
                 return Promise.reject(new Error('Отсутствует родительский контейнер'));
             }
             
-            const contentSize = utils.getContentSize(container);
+            // Проверяем, не находится ли iframe в модальном окне
+            const isInModal = container.closest('#fullscreen-viz-container, #viz-container');
+            
+            let contentSize;
+            if (isInModal) {
+                // Для модальных окон используем более агрессивные размеры,
+                // чтобы избежать появления прокрутки
+                const modalElement = container.closest('.modal');
+                const modalHeight = modalElement ? modalElement.clientHeight : window.innerHeight;
+                contentSize = {
+                    width: container.clientWidth - 20, // Добавляем небольшой отступ
+                    height: Math.min(container.clientHeight - 20, modalHeight - 160)
+                };
+            } else {
+                contentSize = utils.getContentSize(container);
+            }
+            
             const { width, height } = contentSize;
             
             // Проверяем, изменились ли размеры с последнего обновления
             const lastSize = state.chartSizes.get(iframeId);
-            const sizeChanged = !lastSize || 
-                Math.abs(lastSize.width - width) > 5 || 
-                Math.abs(lastSize.height - height) > 5;
             
-            if (!sizeChanged) {
-                utils.log(`Пропуск обновления - размеры не изменились для ${iframeId}`);
-                return Promise.resolve(false);
+            // Для модальных окон делаем только первую оптимизацию или если размер существенно изменился
+            if (isInModal && lastSize) {
+                // Более строгая проверка для модальных окон
+                const sizeChanged = Math.abs(lastSize.width - width) > 30 || 
+                                    Math.abs(lastSize.height - height) > 30;
+                
+                if (!sizeChanged) {
+                    utils.log(`Пропуск обновления - размеры практически не изменились для ${iframeId}`);
+                    return Promise.resolve(false);
+                }
+            } else {
+                // Для обычных iframe проверяем с меньшей точностью
+                const sizeChanged = !lastSize || 
+                    Math.abs(lastSize.width - width) > 5 || 
+                    Math.abs(lastSize.height - height) > 5;
+                
+                if (!sizeChanged) {
+                    utils.log(`Пропуск обновления - размеры не изменились для ${iframeId}`);
+                    return Promise.resolve(false);
+                }
             }
             
             // Обновляем информацию о размерах
@@ -798,7 +952,7 @@
         // Применение макета к диаграмме
         _applyLayoutToChart: function(iframe, layout) {
             if (!iframe || !layout) {
-                return Promise.reject(new Error('Не предоставлены iframe или макет'));
+                return Promise.reject(new Error('Не предоставлены iframe или layout'));
             }
             
             return new Promise((resolve, reject) => {
@@ -817,18 +971,45 @@
                         throw new Error('Объект Plotly не найден в iframe');
                     }
                     
+                    // Предотвращаем flash of unstyled content - применяем relayout до показа
+                    // Скрываем весь iframe а не только plotlyDiv, чтобы избежать мерцания
+                    iframe.style.opacity = '0';
+                    
+                    // Сохраняем размеры до оптимизации для проверки
+                    const initialWidth = plotlyDiv.clientWidth;
+                    const initialHeight = plotlyDiv.clientHeight;
+                    
                     // Применяем новый макет через API Plotly
                     contents.window.Plotly.relayout(plotlyDiv, layout)
                         .then(() => {
                             utils.log(`Макет успешно применен к диаграмме в ${iframe.id}`);
-                            resolve(true);
+                            
+                            // Проверяем, существенно изменились ли размеры
+                            const widthChange = Math.abs(plotlyDiv.clientWidth - initialWidth);
+                            const heightChange = Math.abs(plotlyDiv.clientHeight - initialHeight);
+                            
+                            // Добавляем достаточную задержку перед показом для предотвращения мерцания
+                            const revealDelay = (widthChange > 20 || heightChange > 20) ? 150 : 50;
+                            
+                            // Показываем iframe с плавной анимацией после применения изменений
+                            setTimeout(() => {
+                                iframe.style.opacity = '1';
+                                iframe.classList.add('optimized');
+                                resolve(true);
+                            }, revealDelay);
                         })
                         .catch(err => {
                             utils.log(`Ошибка при применении макета: ${err.message}`, 'error');
+                            
+                            // В случае ошибки всё равно показываем iframe
+                            iframe.style.opacity = '1';
+                            iframe.classList.add('optimized');
                             reject(err);
                         });
                 } catch (error) {
                     utils.log(`Ошибка при обращении к iframe: ${error.message}`, 'error');
+                    iframe.style.opacity = '1';
+                    iframe.classList.add('optimized');
                     reject(error);
                 }
             });
@@ -893,21 +1074,78 @@
             // Обработка событий полноэкранного модального окна
             const fullscreenModal = utils.getElement(config.selectors.fullscreenModal);
             if (fullscreenModal) {
-                utils.registerEventHandler(fullscreenModal, 'shown.bs.modal', () => {
-                    utils.log('Событие показа полноэкранного модального окна');
-                    setTimeout(() => {
-                        const container = utils.getElement(config.selectors.fullscreenContainer);
-                        if (container) {
-                            const iframe = utils.getElement(config.selectors.iframe, container);
-                            if (iframe) {
-                                this.optimizeChartInIframe(iframe);
+                // Обрабатываем событие show.bs.modal (до полного открытия)
+                utils.registerEventHandler(fullscreenModal, 'show.bs.modal', (event) => {
+                    utils.log('Событие начала показа полноэкранного модального окна');
+                    
+                    // Получаем кнопку, которая вызвала модальное окно
+                    const button = event.relatedTarget;
+                    const container = utils.getElement(config.selectors.fullscreenContainer);
+                    
+                    if (container) {
+                        // Добавляем прелоадер перед загрузкой iframe
+                        utils.createLoader(container, 'Загрузка диаграммы...');
+                        
+                        if (button) {
+                            const vizId = button.getAttribute('data-viz-id');
+                            if (vizId && window.visualizationManager) {
+                                const viz = window.visualizationManager.getVisualizationById(vizId);
+                                if (viz) {
+                                    // Устанавливаем заголовок сразу
+                                    const title = viz.actualTitle || viz.title;
+                                    const modalTitle = fullscreenModal.querySelector('.modal-title');
+                                    if (modalTitle && title) {
+                                        modalTitle.textContent = title;
+                                    }
+                                }
                             }
                         }
-                    }, config.timeouts.resizeDelay);
+                    }
                 });
                 
-                utils.registerEventHandler(fullscreenModal, 'hide.bs.modal', () => {
+                // Флаг для отслеживания первого показа после открытия
+                let firstShowHandled = false;
+                
+                utils.registerEventHandler(fullscreenModal, 'shown.bs.modal', () => {
+                    utils.log('Событие показа полноэкранного модального окна');
+                    
+                    // Используем флаг для предотвращения множественных вызовов
+                    if (!firstShowHandled) {
+                        firstShowHandled = true;
+                        
+                        setTimeout(() => {
+                            const container = utils.getElement(config.selectors.fullscreenContainer);
+                            if (container) {
+                                const iframe = utils.getElement(config.selectors.iframe, container);
+                                if (iframe) {
+                                    // Добавляем класс для визуальной изоляции во время загрузки
+                                    iframe.classList.remove('ready');
+                                    
+                                    // Оптимизируем диаграмму только один раз при показе
+                                    this.optimizeChartInIframe(iframe)
+                                        .then(() => {
+                                            // Только после успешной оптимизации показываем iframe и скрываем прелоадер
+                                            setTimeout(() => {
+                                                iframe.classList.add('ready');
+                                                utils.hideLoader(container);
+                                            }, 200);
+                                        })
+                                        .catch(err => {
+                                            // В случае ошибки всё равно скрываем прелоадер
+                                            utils.log(`Ошибка оптимизации: ${err.message}`, 'error');
+                                            utils.hideLoader(container);
+                                            iframe.classList.add('ready');
+                                        });
+                                }
+                            }
+                        }, config.timeouts.resizeDelay);
+                    }
+                });
+                
+                // Сбрасываем флаг при скрытии модального окна
+                utils.registerEventHandler(fullscreenModal, 'hidden.bs.modal', () => {
                     utils.log('Событие скрытия полноэкранного модального окна');
+                    firstShowHandled = false;
                 });
             }
             
@@ -921,7 +1159,19 @@
                         if (container) {
                             const iframe = utils.getElement(config.selectors.iframe, container);
                             if (iframe) {
+                                // Сначала оптимизируем диаграмму
                                 this.optimizeChartInIframe(iframe);
+                                
+                                // Затем обновляем заголовок модального окна с заголовком из Plotly
+                                setTimeout(() => {
+                                    const chartTitle = utils.getChartTitle(iframe);
+                                    if (chartTitle) {
+                                        const modalTitle = standardModal.querySelector('.modal-title');
+                                        if (modalTitle) {
+                                            modalTitle.textContent = chartTitle;
+                                        }
+                                    }
+                                }, 200);
                             }
                         }
                     }, config.timeouts.resizeDelay);
@@ -972,6 +1222,74 @@
             enhanceFullscreenButton();
             setTimeout(enhanceFullscreenButton, 1000);
         },
+
+        // Настройка кнопок для полноэкранного просмотра на карточках
+        _setupFullscreenButtons: function() {
+            // Находим все кнопки полноэкранного режима
+            const fullscreenButtons = document.querySelectorAll('.viz-fullscreen-btn, [data-action="fullscreen"]');
+            
+            utils.log(`Найдено ${fullscreenButtons.length} кнопок полноэкранного режима`);
+            
+            fullscreenButtons.forEach(button => {
+                // Проверяем, не настраивали ли мы уже эту кнопку
+                if (button.getAttribute('data-handler-attached')) return;
+                
+                const vizId = button.getAttribute('data-viz-id');
+                if (!vizId) {
+                    utils.log('Кнопка без идентификатора визуализации', 'warn');
+                    return;
+                }
+                
+                // Настраиваем обработчик клика
+                utils.registerEventHandler(button, 'click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    utils.log(`Клик по кнопке полноэкранного режима для ${vizId}`);
+                    this.openFullscreenChart(vizId);
+                });
+                
+                // Помечаем кнопку как настроенную
+                button.setAttribute('data-handler-attached', 'true');
+                
+                utils.log(`Настроен обработчик для кнопки полноэкранного режима ${vizId}`);
+            });
+            
+            // Также добавим MutationObserver для динамически добавляемых кнопок
+            const self = this;
+            const fullscreenButtonObserver = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) { // Только элементы
+                            // Проверяем сам элемент
+                            if (
+                                (node.classList && node.classList.contains('viz-fullscreen-btn')) || 
+                                node.getAttribute('data-action') === 'fullscreen'
+                            ) {
+                                if (!node.getAttribute('data-handler-attached')) {
+                                    self._setupFullscreenButtons();
+                                }
+                            }
+                            
+                            // Проверяем дочерние элементы
+                            const buttons = node.querySelectorAll('.viz-fullscreen-btn, [data-action="fullscreen"]');
+                            if (buttons.length > 0) {
+                                self._setupFullscreenButtons();
+                            }
+                        }
+                    });
+                });
+            });
+            
+            // Начинаем наблюдение за добавлением кнопок
+            fullscreenButtonObserver.observe(document.body, { 
+                childList: true, 
+                subtree: true 
+            });
+            
+            // Сохраняем observer для последующей очистки
+            state.cleanupRegistry.observers.push(fullscreenButtonObserver);
+        },
         
         // Обработка сообщений от iframe
         _handleIframeMessage: function(event) {
@@ -993,10 +1311,10 @@
                     });
                     
                     if (iframe) {
-                        // Запускаем оптимизацию с небольшой задержкой для гарантии полной загрузки
+                        // Заменить несколько повторных попыток на одну с достаточной задержкой
                         setTimeout(() => {
                             this.optimizeChartInIframe(iframe);
-                        }, config.timeouts.analyzeDelay);
+                        }, 300); // Единая задержка вместо нескольких вызовов
                     }
                 }
                 
@@ -1092,7 +1410,28 @@
             state.cleanupRegistry.observers = [];
             
             utils.log('Очистка ресурсов завершена');
-        }
+        },
+
+        // Метод для открытия визуализации в полноэкранном режиме
+        openFullscreenChart: function(vizId) {
+            utils.log(`Запрос на открытие диаграммы в полноэкранном режиме: ${vizId}`);
+            
+            // Проверяем наличие thumbnailManager и его метода openFullscreen
+            if (window.thumbnailManager && typeof window.thumbnailManager.openFullscreen === 'function') {
+                utils.log('Используем thumbnailManager.openFullscreen');
+                window.thumbnailManager.openFullscreen(vizId);
+                return;
+            }
+            
+            // Запасной вариант через visualizationManager
+            if (window.visualizationManager && typeof window.visualizationManager.openVisualization === 'function') {
+                utils.log('Используем visualizationManager.openVisualization');
+                window.visualizationManager.openVisualization(vizId);
+                return;
+            }
+            
+            utils.log('Не найден метод для открытия визуализации в полноэкранном режиме', 'warn');
+        },
     };
     
     // ========================
@@ -1240,7 +1579,39 @@
             if (!iframe || !iframe.id) return null;
             
             return state.chartAnalysisCache.get(iframe.id);
-        }
+        },
+
+        // Получение заголовка диаграммы
+        getChartTitle: function(iframeOrSelector) {
+            let iframe;
+            
+            if (typeof iframeOrSelector === 'string') {
+                iframe = document.querySelector(iframeOrSelector);
+            } else {
+                iframe = iframeOrSelector;
+            }
+            
+            if (!iframe) {
+                return null;
+            }
+            
+            return utils.getChartTitle(iframe);
+        },
+
+        // Экспортируем utils для внешнего использования
+        utils: {
+            createLoader: function(container, message) {
+                return utils.createLoader(container, message);
+            },
+            hideLoader: function(container, delay) {
+                return utils.hideLoader(container, delay);
+            }
+        },
+
+        // Открытие диаграммы в полноэкранном режиме
+        openFullscreenChart: function(vizId) {
+            return unifiedChartManager.openFullscreenChart(vizId);
+        },
     };
     
     // Инициализируем при загрузке страницы

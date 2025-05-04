@@ -354,6 +354,19 @@
                 return Promise.reject(new Error('Недопустимые размеры контейнера'));
             }
             
+            // Проверяем, не находится ли iframe в модальном окне
+            const isInModal = container.closest('#fullscreen-viz-container, #viz-container');
+            let width = container.clientWidth;
+            let height = container.clientHeight;
+            
+            // Для модальных окон используем более консервативные размеры
+            if (isInModal) {
+                const modalElement = container.closest('.modal');
+                const modalHeight = modalElement ? modalElement.clientHeight : window.innerHeight;
+                width = width - 20; // Добавляем отступ
+                height = Math.min(height - 40, modalHeight - 160);
+            }
+            
             // Далее идет существующий код с дополнительными проверками и обработкой ошибок
             return this._waitForIframeLoad(iframe)
                 .then(() => {
@@ -395,24 +408,6 @@
                     return iframeWin.Plotly.relayout(plotlyDiv, optimizedLayout);
                 })
                 .then(() => {
-                    // Внутри метода optimizeChart, перед return в блоке then после iframeWin.Plotly.relayout
-                    // Обновляем заголовок модального окна
-                    const fullscreenModal = utils.getElement(config.selectors.fullscreenModal);
-                    if (fullscreenModal) {
-                        const modalTitle = fullscreenModal.querySelector('.modal-title');
-                        if (modalTitle && plotlyDiv._fullLayout && plotlyDiv._fullLayout.title) {
-                            let title = '';
-                            if (typeof plotlyDiv._fullLayout.title === 'object' && plotlyDiv._fullLayout.title.text) {
-                                title = plotlyDiv._fullLayout.title.text;
-                            } else if (typeof plotlyDiv._fullLayout.title === 'string') {
-                                title = plotlyDiv._fullLayout.title;
-                            }
-                            
-                            if (title) {
-                                modalTitle.textContent = title;
-                            }
-                        }
-                    }
                     utils.log('Диаграмма успешно оптимизирована');
                     return true;
                 })
@@ -484,6 +479,42 @@
                 
                 iframe.addEventListener('load', handleLoad);
             });
+        },
+
+        // Обновление заголовка в модальном окне
+        updateModalTitle: function(iframe) {
+            if (!iframe) return;
+            
+            // Пытаемся получить заголовок через unifiedChartManager
+            let title = null;
+            if (window.unifiedChartManager && typeof window.unifiedChartManager.getChartTitle === 'function') {
+                title = window.unifiedChartManager.getChartTitle(iframe);
+            }
+            
+            // Если заголовок найден, обновляем его в модальном окне
+            if (title) {
+                const modalTitle = utils.getElement('.modal-title', document.getElementById(config.selectors.fullscreenModal));
+                if (modalTitle) {
+                    modalTitle.textContent = title;
+                }
+            }
+        },
+
+        // Показать полноэкранный режим
+        showFullscreen: function(vizId) {
+            // Существующий код...
+            
+            // После добавления iframe в контейнер
+            const iframe = document.createElement('iframe');
+            // ... настройка iframe ...
+            const container = utils.getElement(config.selectors.fullscreenContainer);
+            container.appendChild(iframe);
+            
+            // Добавить этот вызов после добавления iframe
+            iframe.onload = () => {
+                this.updateModalTitle(iframe);
+                this.optimizeChart(iframe);
+            };
         }
     };
     

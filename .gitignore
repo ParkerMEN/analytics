@@ -1,34 +1,15 @@
-# Python-файлы и кэш
-__pycache__/
-*.py[cod]
-*$py.class
+# Ignore analytics output data
+analytics_output/
 
-# Файлы с API ключами
-api_key.txt
-gpt_config.py
+# Ignore any configuration files with credentials
+*.config
 
-# Временные файлы и папки
-analysis_*/
-responses/
-chart_section_*.png
-diagram_script_*.py
-*.tmp
+# Ignore logs
+*.log
 
-# Шрифты (можно хранить в другом месте)
-*.ttf
-*.pkl
-*.cw127.pkl
-
-# Системные файлы
-.DS_Store
-Thumbs.db
-
-# Файлы редакторов кода
+# Ignore any personal IDE files
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
 
-# Временные файлы
-.tmp
-.temp
+# Ignore file paths with personal information
+**/debug-paths.js

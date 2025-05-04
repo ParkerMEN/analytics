@@ -32,8 +32,9 @@
         
         // Пути к ресурсам
         paths: {
-            thumbnails: '../analytics_output/visualizations/',
-            visualizations: '../analytics_output/visualizations/'
+            // Use the centralized configuration
+            thumbnails: window.appConfig ? window.appConfig.paths.thumbnails : '../analytics_output/visualizations/',
+            visualizations: window.appConfig ? window.appConfig.paths.visualizations : '../analytics_output/visualizations/'
         },
         
         // Классы для динамического создания элементов
@@ -283,23 +284,8 @@
             // Находим контейнер контента
             const content = utils.getElement(config.selectors.visualizationContent, card);
             if (!content) {
-                utils.log(`Не найден контейнер контента для визуализации ${vizData.id}`, 'error');
+                utils.log('Не найден контейнер для контента', 'warn');
                 return;
-            }
-            
-            // Получаем заголовок из кэша, если он есть
-            let title = vizData.title;
-            if (window._visualizationTitlesCache && window._visualizationTitlesCache.has(vizData.id)) {
-                title = window._visualizationTitlesCache.get(vizData.id);
-            }
-            
-            // Обновляем заголовок в карточке
-            const cardHeader = card.querySelector('.card-header');
-            if (cardHeader) {
-                const cardTitle = cardHeader.querySelector('.card-title');
-                if (cardTitle && title) {
-                    cardTitle.textContent = title;
-                }
             }
             
             // Скрываем загрузчик, если есть
@@ -333,7 +319,7 @@
             // Создаем IMG элемент для миниатюры
             const img = document.createElement('img');
             img.className = 'viz-thumbnail-canvas';
-            img.alt = title || `Визуализация ${vizData.id}`; // Используем русское название
+            img.alt = vizData.title || `Визуализация ${vizData.id}`;
             img.style.maxWidth = '100%';
             img.style.maxHeight = '100%';
             img.style.objectFit = 'contain';
@@ -554,78 +540,8 @@
             
             // Обработчик загрузки iframe
             iframe.onload = function() {
-                // Существующий код загрузки
                 loader.style.display = 'none';
                 iframe.style.opacity = '1';
-                
-                // Попытка получить русское название из загруженного iframe
-                try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    const iframeWin = iframe.contentWindow;
-                    
-                    // Находим название в иерархии приоритетов:
-                    // 1. Из конфигурации Plotly напрямую
-                    let iframeTitle = null;
-                    
-                    // Получаем из Plotly, если доступно
-                    if (iframeWin.Plotly && iframeDoc.querySelector('.plotly-graph-div')) {
-                        const plotlyDiv = iframeDoc.querySelector('.plotly-graph-div');
-                        if (plotlyDiv && plotlyDiv._fullLayout && plotlyDiv._fullLayout.title) {
-                            if (typeof plotlyDiv._fullLayout.title === 'object' && plotlyDiv._fullLayout.title.text) {
-                                iframeTitle = plotlyDiv._fullLayout.title.text;
-                            } else if (typeof plotlyDiv._fullLayout.title === 'string') {
-                                iframeTitle = plotlyDiv._fullLayout.title;
-                            }
-                        }
-                    }
-                    
-                    // Если не нашли в Plotly, ищем в DOM
-                    if (!iframeTitle) {
-                        iframeTitle = iframeDoc.title || 
-                            (iframeDoc.querySelector('h1') ? iframeDoc.querySelector('h1').textContent : null);
-                    }
-                    
-                    // Если все еще нет названия, ищем в исходном коде
-                    if (!iframeTitle) {
-                        const htmlContent = iframeDoc.documentElement.outerHTML;
-                        
-                        // Поиск заголовка в конфигурации Plotly
-                        const plotlyConfigMatch = htmlContent.match(/title:\s*{[\s\n]*text:\s*["']([^"']+)["']/i);
-                        if (plotlyConfigMatch && plotlyConfigMatch[1]) {
-                            iframeTitle = plotlyConfigMatch[1];
-                        } else {
-                            // Поиск закодированного юникода
-                            const plotlyUnicodeMatch = htmlContent.match(/title:\s*{[\s\n]*text:\s*"(\\u[0-9a-fA-F]{4}[\\u0-9a-fA-F]*?)"/);
-                            if (plotlyUnicodeMatch && plotlyUnicodeMatch[1]) {
-                                try {
-                                    iframeTitle = JSON.parse('"' + plotlyUnicodeMatch[1] + '"');
-                                } catch(e) {
-                                    console.warn('Не удалось декодировать юникод заголовка:', e);
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Применяем найденный заголовок
-                    if (iframeTitle && modalTitle) {
-                        modalTitle.textContent = iframeTitle;
-                        // Обновляем также данные в визуализации
-                        if (vizData) {
-                            vizData.title = iframeTitle;
-                            
-                            // Обновляем заголовок в карточке, если она существует
-                            const card = document.querySelector(`[data-viz-id="${vizData.id}"]`);
-                            if (card) {
-                                const cardTitle = card.querySelector('.card-title');
-                                if (cardTitle) {
-                                    cardTitle.textContent = iframeTitle;
-                                }
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Не удалось получить русское название из iframe:', e);
-                }
             };
             
             // Открываем модальное окно
@@ -633,56 +549,75 @@
         },
         
         // Открытие полноэкранного модального окна
-        openFullscreenModal: function(vizData) {
-            utils.log(`Открытие полноэкранного модального окна для визуализации: ${vizData.id}`);
-            
-            const modal = utils.getElement(config.selectors.fullscreenModal);
-            if (!modal) {
-                utils.log('Полноэкранное модальное окно не найдено', 'error');
+        openFullscreenModal: function(viz) {
+            if (!viz) {
+                utils.log('Не переданы данные визуализации', 'error');
                 return;
             }
             
-            // Устанавливаем заголовок
-            const modalTitle = utils.getElement(config.selectors.modalTitle, modal);
-            if (modalTitle) {
-                modalTitle.textContent = vizData.title || `Визуализация ${vizData.id}`;
+            utils.log(`Открытие полноэкранного модального окна для ${viz.id}`);
+            
+            const modal = utils.getElement(config.selectors.fullscreenModal);
+            if (!modal) {
+                utils.log('Модальное окно не найдено', 'error');
+                return;
             }
             
-            // Получаем контейнер для контента
-            const container = utils.getElement(config.selectors.fullscreenContainer);
+            const container = modal.querySelector('#fullscreen-viz-container');
             if (!container) {
-                utils.log('Контейнер для полноэкранной визуализации не найден', 'error');
+                utils.log('Контейнер полноэкранного режима не найден', 'error');
                 return;
             }
             
             // Очищаем контейнер
             container.innerHTML = '';
             
-            // Создаем загрузчик
-            const loader = document.createElement('div');
-            loader.className = config.classes.loader;
-            loader.innerHTML = `<div class="${config.classes.spinner}"></div>`;
-            container.appendChild(loader);
+            // Добавляем прелоадер сразу (он будет показан до начала загрузки iframe)
+            if (window.unifiedChartManager && window.unifiedChartManager.utils) {
+                window.unifiedChartManager.utils.createLoader(container, 'Подготовка диаграммы...');
+            } else {
+                // Запасной вариант, если unifiedChartManager недоступен
+                const loader = document.createElement('div');
+                loader.className = 'viz-loading-container';
+                loader.innerHTML = '<div class="viz-loading-spinner"></div><div class="viz-loading-text">Загрузка...</div>';
+                container.appendChild(loader);
+            }
             
-            // Создаем iframe для загрузки визуализации
+            // Получаем актуальный заголовок диаграммы
+            const title = viz.actualTitle || viz.title;
+            
+            // Устанавливаем заголовок модального окна
+            const modalTitle = modal.querySelector('.modal-title');
+            if (modalTitle && title) {
+                modalTitle.textContent = title;
+            }
+            
+            // Создаем iframe
             const iframe = document.createElement('iframe');
             iframe.className = 'viz-modal-iframe';
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.border = 'none';
-            iframe.style.opacity = '0';
-            iframe.style.transition = 'opacity 0.3s';
-            iframe.src = config.paths.visualizations + vizData.path;
+            iframe.id = `iframe-${viz.id}-fullscreen`;
+            // Используем визуализацию полного размера с правильным путем
+            const basePath = window.visualizationsBasePath || '../analytics_output/visualizations/';
+            iframe.src = `${basePath}${viz.path}`; 
+            
+            // Добавляем iframe в контейнер
             container.appendChild(iframe);
             
-            // Обработчик загрузки iframe
-            iframe.onload = function() {
-                loader.style.display = 'none';
-                iframe.style.opacity = '1';
-            };
+            // Сохраняем информацию об открытой визуализации
+            state.openModals.add(modal);
             
-            // Открываем полноэкранное модальное окно
-            this.openModal(modal);
+            // Открываем модальное окно через Bootstrap
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            } else {
+                // Запасной вариант для jQuery
+                if (window.jQuery && jQuery.fn.modal) {
+                    jQuery(modal).modal('show');
+                } else {
+                    utils.log('Не найдена библиотека для открытия модального окна', 'error');
+                }
+            }
         },
         
         // Общая функция открытия модального окна

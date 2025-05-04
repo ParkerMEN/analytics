@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Demo Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id="chart" class="plotly-graph-div"></div>
+    <script>
+        // Sample data for demonstration
+        var data = [{
+            x: ['Category A', 'Category B', 'Category C', 'Category D'],
+            y: [4, 7, 3, 5],
+            type: 'bar'
+        }];
+        
+        var layout = {
+            title: 'Demo Visualization',
+            font: {family: 'Inter, sans-serif'},
+            margin: {t: 50, l: 50, r: 50, b: 50}
+        };
+        
+        Plotly.newPlot('chart', data, layout);
+    </script>
+</body>
+</html>
