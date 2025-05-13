@@ -1,0 +1,23 @@
+# 📋 Functional Requirements — Plotly Gallery Application
+
+| Requirement ID | Description                        | User Story                                                                                         | Expected Behavior/Outcome                                                                                                                                  |
+|----------------|------------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| FR001          | Displaying Visualization Gallery   | As a user, I want to see a gallery of visualization thumbnails to explore available charts.        | The system should show a grid of visualization thumbnails on the gallery page, each linked to its detailed viewer.                                        |
+| FR002          | Viewing Detailed Visualizations    | As a user, I want to click a thumbnail to view a full interactive visualization.                   | The system should open a viewer page or iframe that loads the full Plotly visualization with interaction capabilities.                                    |
+| FR003          | Smooth Client-Side Navigation      | As a user, I want to navigate between pages without full reloads for better performance.            | The app should use client-side routing to transition between views, ensuring a seamless and responsive experience.                                        |
+| FR004          | Theme Support                      | As a user, I want the application to respect my dark/light theme preference.                        | The app should initialize themes via `theme.js`, store preferences, and apply the appropriate styles automatically.                                       |
+| FR005          | Responsive Layout                  | As a user, I want the gallery and visualizations to look good on all screen sizes.                  | The layout should adapt to mobile, tablet, and desktop views using Bootstrap or similar responsive design techniques.                                     |
+| FR006          | Iframe Scroll & Size Management    | As a user, I want visualizations to fit well and scroll properly inside the viewer.                 | `iframe-controller.js` should dynamically adjust iframe height and manage scroll behavior to prevent clipping or overflow issues.                         |
+| FR007          | Interactive Controls               | As a user, I want to interact with visualizations using zoom, filters, and toggles.                 | Each Plotly visualization should support built-in interactions, and `viz-controls.js` may provide enhanced interactivity.                                 |
+
+# 🧱 Non-Functional Requirements
+
+| Requirement ID | Description                          | Explanation                                                                                                                                 |
+|----------------|--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| NFR001         | Modular Architecture                 | Code should be organized into well-defined modules (e.g., `core/`, `pages/`, `components/`) for better scalability and maintainability.     |
+| NFR002         | Event-Driven UX                      | The UI should rely on JavaScript event listeners to respond to user actions and update content dynamically.                                 |
+| NFR003         | Separation of Concerns               | Frontend logic, routing, theming, and backend communication must remain decoupled and clearly scoped.                                       |
+| NFR004         | Performance Optimization             | App should support lazy loading, dynamic imports, and minimal DOM reflow to ensure smooth user experience.                                 |
+| NFR005         | Cross-Browser Compatibility          | The application must function on all modern browsers and degrade gracefully where features are unsupported.                                |
+| NFR006         | Accessibility Compliance             | Basic ARIA roles and keyboard navigability should be implemented where feasible to improve accessibility.                                  |
+| NFR007         | Developer-Friendly Codebase          | Code should follow ES6+ standards, use descriptive naming, and maintain consistent formatting and documentation practices.                  |
